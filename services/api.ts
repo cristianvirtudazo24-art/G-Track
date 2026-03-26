@@ -1,17 +1,46 @@
-import axios from 'axios';
 
-// Placeholder for the Admin's IP Address
-const API_URL = 'http://192.168.1.XX:8000/api'; 
+// 1. Leave this empty for now since you don't have the IP
+const API_URL = 'http://OFFLINE_TEST_MODE'; 
 
-// Added :string types to email and password to fix the red lines
-export const loginStudent = async (email: string, password: string) => {
-  console.log("Original Login Slot called for:", email);
-  // Real API call will be filled here later
-  return { success: true }; 
+/**
+ * MOCKED: 15-Minute Sync
+ */
+export const syncStudentData = async (payload: any) => {
+  console.log("🛠️ TEST MODE: 15-min Sync Data captured locally:", payload);
+  
+  // We simulate a successful server response after 1 second
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      console.log("✅ TEST MODE: Sync Success (Simulated)");
+      resolve(true); 
+    }, 1000);
+  });
 };
 
-// Added :any type to location to fix the red line
-export const sendSOS = async (location: any) => {
-  console.log("Original SOS Slot called with location:", location);
-  // Real API call will be filled here later
+/**
+ * MOCKED: SOS Alert
+ */
+export const sendSOS = async (payload: any) => {
+  console.log("🚨 TEST MODE: SOS Signal Triggered!", payload);
+  
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      console.log("✅ TEST MODE: SOS Received by 'Admin' (Simulated)");
+      resolve({ status: 'success' });
+    }, 500);
+  });
+};
+
+/**
+ * MOCKED: Video Upload
+ */
+export const uploadEmergencyVideo = async (videoUri: string, studentId: string) => {
+  console.log(`📹 TEST MODE: Uploading video for ${studentId} from ${videoUri}`);
+  
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      console.log("✅ TEST MODE: Video Upload Complete (Simulated)");
+      resolve({ status: 'uploaded' });
+    }, 2000);
+  });
 };

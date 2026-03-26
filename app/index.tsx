@@ -1,26 +1,77 @@
-import { SOSButton } from '@/components/SOSButton';
-import React from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
-import { sendSOS } from '../services/api';
+import React, { useEffect, useRef, useState } from 'react';
+import { HomeView } from '../components/HomeView';
+import { StatusSuccessModal } from '../components/StatusSuccessModal';
+import { useEmergencyRecord } from '../hooks/useEmergencyRecord';
+import { useLocation } from '../hooks/useLocation';
+import { sendSOS, syncStudentData, uploadEmergencyVideo } from '../services/api';
 
 export default function HomeScreen() {
-  const handleSOSPress = () => {
-    // Calling the "Original Slot" we made for Rex/Allysa
-    sendSOS({ latitude: 10.3157, longitude: 123.8854 }); 
-    Alert.alert("Emergency", "SOS Slot Triggered! Check your VS Code Terminal.");
+  const { location, errorMsg } = useLocation();
+  const { cameraRef, startEmergencyCapture, isRecording } = useEmergencyRecord();
+  
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [activeType, setActiveType] = useState<'emergency' | 'safe' | 'help' | null>(null);
+
+  // --- 15 MINUTE TIMER LOGIC ---
+  const lastSyncTime = useRef<number>(0); 
+  const FIFTEEN_MINUTES = 15 * 60 * 1000; // 15 mins in milliseconds
+
+  useEffect(() => {
+    const currentTime = Date.now();
+
+    // Check: Do we have location? Has it been 15 minutes?
+    if (location && (currentTime - lastSyncTime.current > FIFTEEN_MINUTES)) {
+      
+      console.log("🕒 15 Minutes passed. Syncing to Admin...");
+      
+      syncStudentData({
+        studentId: "PN2026-0123",
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        battery: 100,
+        timestamp: new Date().toISOString()
+      }).then((success) => {
+        if (success) {
+          // Only update the timer if the server actually received it
+          lastSyncTime.current = currentTime; 
+        }
+      });
+    }
+  }, [location]); // useEffect triggers on every GPS move, but 'if' blocks the API call
+
+  // --- INSTANT SOS (Ignores the 15-min timer) ---
+  const handleSOSAction = async (type: 'emergency' | 'safe' | 'help') => {
+    setMenuVisible(false);
+    setActiveType(type);
+
+    await sendSOS({ type, location, studentId: "PN2026-0123" });
+
+    if (type === 'emergency') {
+      const videoUri = await startEmergencyCapture();
+      if (videoUri) {
+        await uploadEmergencyVideo(videoUri, "PN2026-0123");
+      }
+    }
+    setSuccessVisible(true);
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>G!Track Emergency</Text>
-      <SOSButton onPress={handleSOSPress} />
-      <Text style={styles.footer}>Tap to Alert Admin</Text>
-    </View>
+    <>
+      <HomeView 
+        location={location}
+        errorMsg={errorMsg}
+        modalVisible={menuVisible}
+        setModalVisible={setMenuVisible}
+        onSOSAction={handleSOSAction}
+        cameraRef={cameraRef}
+        isRecording={isRecording}
+      />
+      <StatusSuccessModal 
+        isVisible={successVisible}
+        type={activeType}
+        onClose={() => setSuccessVisible(false)}
+      />
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 40 },
-  footer: { marginTop: 20, color: 'red' }
-});
