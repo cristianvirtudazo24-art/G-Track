@@ -1,77 +1,82 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { HomeView } from '../components/HomeView';
-import { StatusSuccessModal } from '../components/StatusSuccessModal';
-import { useEmergencyRecord } from '../hooks/useEmergencyRecord';
-import { useLocation } from '../hooks/useLocation';
-import { sendSOS, syncStudentData, uploadEmergencyVideo } from '../services/api';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { mockLogin } from '../services/auth';
 
-export default function HomeScreen() {
-  const { location, errorMsg } = useLocation();
-  const { cameraRef, startEmergencyCapture, isRecording } = useEmergencyRecord();
-  
-  const [menuVisible, setMenuVisible] = useState(false);
-  const [successVisible, setSuccessVisible] = useState(false);
-  const [activeType, setActiveType] = useState<'emergency' | 'safe' | 'help' | null>(null);
+export default function LoginScreen() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [studentId, setStudentId] = useState('');
 
-  // --- 15 MINUTE TIMER LOGIC ---
-  const lastSyncTime = useRef<number>(0); 
-  const FIFTEEN_MINUTES = 15 * 60 * 1000; // 15 mins in milliseconds
-
-  useEffect(() => {
-    const currentTime = Date.now();
-
-    // Check: Do we have location? Has it been 15 minutes?
-    if (location && (currentTime - lastSyncTime.current > FIFTEEN_MINUTES)) {
+  const handleSignIn = async () => {
+    try {
+      // Logic from services/auth.ts
+      const response: any = await mockLogin(email, password, studentId);
       
-      console.log("🕒 15 Minutes passed. Syncing to Admin...");
-      
-      syncStudentData({
-        studentId: "PN2026-0123",
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        battery: 100,
-        timestamp: new Date().toISOString()
-      }).then((success) => {
-        if (success) {
-          // Only update the timer if the server actually received it
-          lastSyncTime.current = currentTime; 
-        }
-      });
-    }
-  }, [location]); // useEffect triggers on every GPS move, but 'if' blocks the API call
-
-  // --- INSTANT SOS (Ignores the 15-min timer) ---
-  const handleSOSAction = async (type: 'emergency' | 'safe' | 'help') => {
-    setMenuVisible(false);
-    setActiveType(type);
-
-    await sendSOS({ type, location, studentId: "PN2026-0123" });
-
-    if (type === 'emergency') {
-      const videoUri = await startEmergencyCapture();
-      if (videoUri) {
-        await uploadEmergencyVideo(videoUri, "PN2026-0123");
+      if (response.success) {
+        console.log("✅ Login Success: Redirecting to Home...");
+        // This jumps to app/home.tsx
+        router.replace('/home'); 
       }
+    } catch (error) {
+      Alert.alert("Login Failed", "Please use the dev credentials provided.");
     }
-    setSuccessVisible(true);
   };
 
   return (
-    <>
-      <HomeView 
-        location={location}
-        errorMsg={errorMsg}
-        modalVisible={menuVisible}
-        setModalVisible={setMenuVisible}
-        onSOSAction={handleSOSAction}
-        cameraRef={cameraRef}
-        isRecording={isRecording}
-      />
-      <StatusSuccessModal 
-        isVisible={successVisible}
-        type={activeType}
-        onClose={() => setSuccessVisible(false)}
-      />
-    </>
+    <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.appTitle}>G!Track</Text>
+        <Text style={styles.appSubtitle}>Student Safety & Tracking System</Text>
+      </View>
+
+      <View style={styles.formCard}>
+        <Text style={styles.welcomeText}>Welcome Back</Text>
+        
+        <Text style={styles.label}>Student Email</Text>
+        <TextInput 
+          style={styles.input} 
+          value={email} 
+          onChangeText={setEmail} 
+          placeholder="defgegf" 
+          autoCapitalize="none"
+        />
+
+        <Text style={styles.label}>Password</Text>
+        <TextInput 
+          style={styles.input} 
+          value={password} 
+          onChangeText={setPassword} 
+          secureTextEntry 
+          placeholder="sjfdjbvhfv" 
+        />
+
+        <Text style={styles.label}>Student ID</Text>
+        <TextInput 
+          style={styles.input} 
+          value={studentId} 
+          onChangeText={setStudentId} 
+          placeholder="kefnbjhf" 
+        />
+
+        <TouchableOpacity style={styles.button} onPress={handleSignIn}>
+          <Text style={styles.buttonText}>Sign In</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flexGrow: 1, backgroundColor: '#2563EB', padding: 20, justifyContent: 'center' },
+  header: { alignItems: 'center', marginBottom: 40 },
+  appTitle: { color: '#fff', fontSize: 28, fontWeight: 'bold' },
+  appSubtitle: { color: '#fff', fontSize: 14, opacity: 0.8 },
+  formCard: { backgroundColor: '#fff', borderRadius: 20, padding: 25 },
+  welcomeText: { fontSize: 22, fontWeight: 'bold', marginBottom: 25 },
+  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
+  input: { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10, padding: 12, marginBottom: 20 },
+  button: { backgroundColor: '#2563EB', padding: 16, borderRadius: 12, alignItems: 'center' },
+  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
+});
