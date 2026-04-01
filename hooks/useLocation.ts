@@ -10,9 +10,11 @@ export const useLocation = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const lastSyncTime = useRef<number>(0);
+  const studentIdRef = useRef<string | null>(null);
   const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
-  const startContinuousSharing = async () => {
+  const startContinuousSharing = async (studentId: string) => {
+    studentIdRef.current = studentId;
     try {
       const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
       const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
@@ -61,7 +63,7 @@ export const useLocation = () => {
             const batteryPercent = Math.round(batteryLevel * 100);
 
             syncStudentData({
-              studentId: "kefnbjhf",
+              studentId: studentIdRef.current ?? '',
               latitude: newLocation.coords.latitude,
               longitude: newLocation.coords.longitude,
               battery: batteryPercent, // 3. Use real percentage
@@ -76,5 +78,16 @@ export const useLocation = () => {
     })();
   }, []);
 
-  return { location, errorMsg, startContinuousSharing };
+  const stopContinuousSharing = async () => {
+    try {
+      const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+      if (hasStarted) {
+        await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  return { location, errorMsg, startContinuousSharing, stopContinuousSharing };
 };

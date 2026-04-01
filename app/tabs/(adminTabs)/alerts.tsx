@@ -1,32 +1,38 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { FlatList, StyleSheet, Text, View, SafeAreaView } from 'react-native';
+import { getAlerts } from '../../../services/api';
 
-const MOCK_ALERTS = [
-  { id: '1', title: 'Emergency Drill', body: 'Earthquake drill at 2:00 PM. Please proceed to the open field.', time: '10 mins ago', type: 'info' },
-  { id: '2', title: 'Security Alert', body: 'Unidentified person reported near Gate 2. Stay in your classrooms.', time: '1 hour ago', type: 'warning' },
-];
-
-const ALERT_CONFIG: Record<string, { color: string; bg: string; icon: string }> = {
-  info:    { color: '#1E2F97', bg: '#EEF2FF', icon: 'information' },
-  warning: { color: '#F97316', bg: '#FFF7ED', icon: 'alert' },
-  danger:  { color: '#E8313A', bg: '#FEE2E2', icon: 'alert-octagon' },
+const ALERT_CONFIG: Record<string, { color: string; bg: string; icon: string; label: string }> = {
+  danger:  { color: '#E8313A', bg: '#FEE2E2', icon: 'alert-octagon', label: 'DANGER' },
+  warning: { color: '#F97316', bg: '#FFF7ED', icon: 'alert',         label: 'WARNING' },
+  info:    { color: '#1E2F97', bg: '#EEF2FF', icon: 'information',    label: 'INFO' },
 };
 
-export default function AlertsScreen() {
+export default function AdminAlertsScreen() {
+  const [alerts, setAlerts] = useState<any[]>([]);
+
+  useEffect(() => {
+    getAlerts().then(setAlerts);
+    const interval = setInterval(() => {
+      getAlerts().then(data => setAlerts([...data]));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Alerts</Text>
-        <Text style={styles.headerSubtitle}>Notifications from campus admin</Text>
+        <Text style={styles.headerTitle}>Incident Reports</Text>
+        <Text style={styles.headerSubtitle}>Real-time alerts & student emergencies</Text>
       </View>
 
       <FlatList
-        data={MOCK_ALERTS}
+        data={alerts}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<Text style={styles.emptyText}>No alerts at this time.</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>No alerts actively recorded.</Text>}
         renderItem={({ item }) => {
           const cfg = ALERT_CONFIG[item.type] ?? ALERT_CONFIG.info;
           return (
@@ -36,24 +42,24 @@ export default function AlertsScreen() {
               </View>
               <View style={styles.alertContent}>
                 <View style={styles.alertHeader}>
-                  <Text style={[styles.alertTitle, { color: cfg.color }]}>{item.title}</Text>
-                  <Text style={styles.alertTime}>{item.time}</Text>
+                  <Text style={[styles.alertType, { color: cfg.color }]}>{cfg.label}</Text>
+                  <Text style={styles.alertTime}>{new Date(item.timestamp).toLocaleTimeString()}</Text>
                 </View>
-                <Text style={styles.alertBody}>{item.body}</Text>
+                <Text style={styles.alertBody}>{item.text}</Text>
               </View>
             </View>
           );
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FF' },
+  safeArea: { flex: 1, backgroundColor: '#F5F7FF' },
   header: {
     backgroundColor: '#1E2F97',
-    paddingTop: 55,
+    paddingTop: 20,
     paddingBottom: 24,
     paddingHorizontal: 24,
     borderBottomLeftRadius: 28,
@@ -78,8 +84,8 @@ const styles = StyleSheet.create({
   iconWrap: { padding: 10, borderRadius: 14, marginRight: 14, marginTop: 2 },
   alertContent: { flex: 1 },
   alertHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
-  alertTitle: { fontWeight: '700', fontSize: 15 },
+  alertType: { fontWeight: '800', fontSize: 12, letterSpacing: 1 },
   alertTime: { fontSize: 12, color: '#9CA3AF' },
-  alertBody: { fontSize: 14, color: '#4B5563', lineHeight: 21 },
+  alertBody: { fontSize: 14, color: '#4B5563', lineHeight: 21, marginTop: 2 },
   emptyText: { textAlign: 'center', color: '#9CA3AF', fontSize: 16, marginTop: 60 },
 });

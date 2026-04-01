@@ -1,4 +1,4 @@
-import { Octicons } from '@expo/vector-icons'; // Using Octicons for the alert octagon
+import { Octicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -8,51 +8,55 @@ interface Props {
 
 export const SOSButton = ({ onPress }: Props) => {
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
-      {/* The Octagon Icon */}
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.iconContainer}>
-        <Octicons name="alert" size={40} color="white" />
+        <Octicons name="alert" size={36} color="white" />
       </View>
-      
-      {/* Main SOS Text */}
-      <Text style={styles.sosText}>SOS</Text>
-      
-      {/* Subtext description */}
-      <Text style={styles.statusText}>Emergency & Safety Status</Text>
+      <View style={styles.textContainer}>
+        <Text style={styles.sosText}>SOS</Text>
+        <Text style={styles.statusText}>Tap to report an emergency</Text>
+      </View>
+      <View style={styles.chevron}>
+        <Octicons name="chevron-right" size={22} color="rgba(255,255,255,0.7)" />
+      </View>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#F38181', // Matching the red/coral color from image_3.png
+    backgroundColor: '#E8313A',
     width: '100%',
-    paddingVertical: 35,
-    paddingHorizontal: 20,
+    paddingVertical: 22,
+    paddingHorizontal: 22,
     borderRadius: 20,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    // Slight shadow to make it pop like a card
     elevation: 8,
-    shadowColor: '#F38181',
+    shadowColor: '#E8313A',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    marginBottom: 14,
   },
   iconContainer: {
-    marginBottom: 15,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    padding: 12,
+    borderRadius: 16,
+    marginRight: 16,
   },
+  textContainer: { flex: 1 },
   sosText: {
     color: 'white',
-    fontSize: 28,
-    fontWeight: '800', // Making it heavy and prominent
-    letterSpacing: 2,
-    marginBottom: 5,
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 3,
+    marginBottom: 3,
   },
   statusText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '400',
-    opacity: 0.9,
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    fontWeight: '500',
   },
+  chevron: { marginLeft: 8 },
 });

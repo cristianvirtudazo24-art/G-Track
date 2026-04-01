@@ -32,6 +32,8 @@ export default function RootLayout() {
       <Stack.Screen name="index" /> 
       {/* Tab Group follows after login */}
       <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+      {/* Admin Tab Group */}
+      <Stack.Screen name="(adminTabs)" options={{ animation: 'fade' }} />
     </Stack>
   );
 }

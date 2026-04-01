@@ -4,18 +4,19 @@ import { HomeView } from '../../../components/HomeView';
 import { StatusSuccessModal } from '../../../components/StatusSuccessModal';
 import { useEmergencyRecord } from '../../../hooks/useEmergencyRecord';
 import { useLocation } from '../../../hooks/useLocation';
-import { sendSOS, syncStudentData, uploadEmergencyVideo } from '../../../services/api';
+import { sendBlackoutAlert, sendSOS, syncStudentData, uploadEmergencyVideo } from '../../../services/api';
 
 export default function HomeScreen() {
   const { location, errorMsg } = useLocation();
   const { cameraRef, startEmergencyCapture, isRecording } = useEmergencyRecord();
-  
+
   const [menuVisible, setMenuVisible] = useState(false);
+  const [blackoutModalVisible, setBlackoutModalVisible] = useState(false);
   const [successVisible, setSuccessVisible] = useState(false);
   const [activeType, setActiveType] = useState<'emergency' | 'safe' | 'help' | null>(null);
 
-  const lastSyncTime = useRef<number>(0); 
-  const FIFTEEN_MINUTES = 15 * 60 * 1000; 
+  const lastSyncTime = useRef<number>(0);
+  const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
   useEffect(() => {
     const checkAndSync = async () => {
@@ -35,7 +36,7 @@ export default function HomeScreen() {
           timestamp: new Date().toISOString()
         }).then((success) => {
           if (success) {
-            lastSyncTime.current = currentTime; 
+            lastSyncTime.current = currentTime;
           }
         });
       }
@@ -43,6 +44,25 @@ export default function HomeScreen() {
 
     checkAndSync();
   }, [location]);
+
+  const handleBlackoutSubmit = async (message: string) => {
+    setBlackoutModalVisible(false);
+
+    // Get real battery level
+    const batteryLevel = await Battery.getBatteryLevelAsync();
+    const batteryPercent = Math.round(batteryLevel * 100);
+
+    // Call API
+    await sendBlackoutAlert({
+      studentId: "kefnbjhf",
+      battery: batteryPercent,
+      message,
+    });
+
+    // Reuse success modal for now
+    setActiveType('safe');
+    setSuccessVisible(true);
+  };
 
   const handleSOSAction = async (type: 'emergency' | 'safe' | 'help') => {
     setMenuVisible(false);
@@ -61,16 +81,19 @@ export default function HomeScreen() {
 
   return (
     <>
-      <HomeView 
+      <HomeView
         location={location}
         errorMsg={errorMsg}
         modalVisible={menuVisible}
         setModalVisible={setMenuVisible}
         onSOSAction={handleSOSAction}
+        blackoutModalVisible={blackoutModalVisible}
+        setBlackoutModalVisible={setBlackoutModalVisible}
+        onBlackoutSubmit={handleBlackoutSubmit}
         cameraRef={cameraRef}
         isRecording={isRecording}
       />
-      <StatusSuccessModal 
+      <StatusSuccessModal
         isVisible={successVisible}
         type={activeType}
         onClose={() => setSuccessVisible(false)}
