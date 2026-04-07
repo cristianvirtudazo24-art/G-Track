@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLocation } from '../../hooks/useLocation';
-import { mockLogin } from '../../services/auth';
+import { login } from '../../services/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -22,17 +22,20 @@ export default function LoginScreen() {
     }
 
     try {
-      // 1. Verify with the Mock Logic
-      const response: any = await mockLogin(email, password, role, role === 'student' ? studentId : undefined);
+      // 1. Verify with the Unified Login Logic (Real or Mock)
+      const response: any = await login(email, password, role, role === 'student' ? studentId : undefined);
 
       if (response.success) {
         console.log("✅ Login Success!");
 
         // 2. Persist session so background services can identify the student
         await AsyncStorage.setItem('userRole', role);
-        if (role === 'student') {
+        if (role === 'student' && response.user) {
           await AsyncStorage.setItem('studentId', studentId);
           await AsyncStorage.setItem('studentEmail', email);
+          if (response.user.name) await AsyncStorage.setItem('studentName', response.user.name);
+          if (response.user.gender) await AsyncStorage.setItem('studentGender', response.user.gender);
+
           // START THE CONTINUOUS SHARING ENGINE
           await startContinuousSharing(studentId);
         }
@@ -122,36 +125,35 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#1E2F97', padding: 20, justifyContent: 'center' },
-  header: { alignItems: 'center', marginBottom: 30 },
+  container: { flexGrow: 1, backgroundColor: '#1E2F97', padding: 24, justifyContent: 'center' },
+  header: { alignItems: 'center', marginBottom: 25 },
   logoWrapper: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'white', // In case the logo has transparency
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 15,
-    overflow: 'hidden', // Keeps the image within the circle
-    elevation: 8,
+    marginBottom: 12,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
     shadowRadius: 5,
   },
-  logoImage: { width: '100%', height: '100%' },
-  appTitle: { color: '#fff', fontSize: 32, fontWeight: 'bold' },
-  appSubtitle: { color: '#fff', fontSize: 14, opacity: 0.9 },
-  formCard: { backgroundColor: '#fff', borderRadius: 24, padding: 25, elevation: 5 },
-  roleSelector: { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 12, padding: 4, marginBottom: 20 },
-  roleButton: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
-  roleButtonActive: { backgroundColor: '#fff', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3 },
-  roleButtonText: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
+  logoImage: { width: '80%', height: '80%' },
+  appTitle: { color: '#fff', fontSize: 28, fontWeight: 'bold', letterSpacing: 1 },
+  appSubtitle: { color: '#fff', fontSize: 13, opacity: 0.85 },
+  formCard: { backgroundColor: '#fff', borderRadius: 18, padding: 22, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 10 },
+  roleSelector: { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 10, padding: 3, marginBottom: 18 },
+  roleButton: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
+  roleButtonActive: { backgroundColor: '#fff', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2 },
+  roleButtonText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
   roleButtonTextActive: { color: '#1E2F97' },
-  welcomeText: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, color: '#111827' },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 12, padding: 14, marginBottom: 15, fontSize: 16 },
-  button: { backgroundColor: '#F97316', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
-  devNote: { textAlign: 'center', color: '#9CA3AF', fontSize: 12, marginTop: 15 }
+  welcomeText: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: '#111827' },
+  label: { fontSize: 13, fontWeight: '600', color: '#4B5563', marginBottom: 6 },
+  input: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, padding: 12, marginBottom: 12, fontSize: 15, color: '#111827' },
+  button: { backgroundColor: '#F97316', padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 8 },
+  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  devNote: { textAlign: 'center', color: '#9CA3AF', fontSize: 11, marginTop: 15 }
 });

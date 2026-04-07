@@ -1,12 +1,14 @@
-import * as Battery from 'expo-battery'; // Import Battery
-import React, { useEffect, useRef, useState } from 'react';
+import * as Battery from 'expo-battery';
+import React, { useState } from 'react';
 import { HomeView } from '../../../components/HomeView';
 import { StatusSuccessModal } from '../../../components/StatusSuccessModal';
 import { useEmergencyRecord } from '../../../hooks/useEmergencyRecord';
 import { useLocation } from '../../../hooks/useLocation';
-import { sendBlackoutAlert, sendSOS, syncStudentData, uploadEmergencyVideo } from '../../../services/api';
+import { useUser } from '../../../hooks/useUser';
+import { sendBlackoutAlert, sendSOS, uploadEmergencyVideo } from '../../../services/api';
 
 export default function HomeScreen() {
+  const { session, loading } = useUser();
   const { location, errorMsg } = useLocation();
   const { cameraRef, startEmergencyCapture, isRecording } = useEmergencyRecord();
 
@@ -15,35 +17,7 @@ export default function HomeScreen() {
   const [successVisible, setSuccessVisible] = useState(false);
   const [activeType, setActiveType] = useState<'emergency' | 'safe' | 'help' | null>(null);
 
-  const lastSyncTime = useRef<number>(0);
-  const FIFTEEN_MINUTES = 15 * 60 * 1000;
-
-  useEffect(() => {
-    const checkAndSync = async () => {
-      const currentTime = Date.now();
-
-      if (location && (currentTime - lastSyncTime.current > FIFTEEN_MINUTES)) {
-        // GET REAL BATTERY LEVEL
-        const batteryLevel = await Battery.getBatteryLevelAsync();
-        const batteryPercent = Math.round(batteryLevel * 100);
-
-        syncStudentData({
-          studentId: "kefnbjhf",
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          battery: batteryPercent, // Use real percentage
-          status: "Active",
-          timestamp: new Date().toISOString()
-        }).then((success) => {
-          if (success) {
-            lastSyncTime.current = currentTime;
-          }
-        });
-      }
-    };
-
-    checkAndSync();
-  }, [location]);
+  if (loading) return null; // Or a themed spinner
 
   const handleBlackoutSubmit = async (message: string) => {
     setBlackoutModalVisible(false);
@@ -52,9 +26,9 @@ export default function HomeScreen() {
     const batteryLevel = await Battery.getBatteryLevelAsync();
     const batteryPercent = Math.round(batteryLevel * 100);
 
-    // Call API
+    // Call API with real studentId
     await sendBlackoutAlert({
-      studentId: "kefnbjhf",
+      studentId: session.studentId ?? 'unknown',
       battery: batteryPercent,
       message,
     });
@@ -68,12 +42,14 @@ export default function HomeScreen() {
     setMenuVisible(false);
     setActiveType(type);
 
-    await sendSOS({ type, location, studentId: "kefnbjhf" });
+    const studentId = session.studentId ?? 'unknown';
+
+    await sendSOS({ type, location, studentId });
 
     if (type === 'emergency') {
       const videoUri = await startEmergencyCapture();
       if (videoUri) {
-        await uploadEmergencyVideo(videoUri, "kefnbjhf");
+        await uploadEmergencyVideo(videoUri, studentId);
       }
     }
     setSuccessVisible(true);
@@ -100,4 +76,4 @@ export default function HomeScreen() {
       />
     </>
   );
-}
+}
