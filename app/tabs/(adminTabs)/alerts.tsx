@@ -13,10 +13,12 @@ export default function AdminAlertsScreen() {
   const [alerts, setAlerts] = useState<any[]>([]);
 
   useEffect(() => {
-    getAlerts().then(setAlerts);
-    const interval = setInterval(() => {
-      getAlerts().then(data => setAlerts([...data]));
-    }, 3000);
+    const fetchAlerts = () => {
+      getAlerts().then(setAlerts);
+    };
+
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -46,6 +48,7 @@ export default function AdminAlertsScreen() {
                   <Text style={styles.alertTime}>{new Date(item.timestamp).toLocaleTimeString()}</Text>
                 </View>
                 <Text style={styles.alertBody}>{item.text}</Text>
+                <Text style={styles.alertStudentId}>Student ID: {item.studentId}</Text>
               </View>
             </View>
           );
@@ -87,5 +90,6 @@ const styles = StyleSheet.create({
   alertType: { fontWeight: '800', fontSize: 12, letterSpacing: 1 },
   alertTime: { fontSize: 12, color: '#9CA3AF' },
   alertBody: { fontSize: 14, color: '#4B5563', lineHeight: 21, marginTop: 2 },
+  alertStudentId: { fontSize: 11, color: '#9CA3AF', marginTop: 4, fontWeight: '600' },
   emptyText: { textAlign: 'center', color: '#9CA3AF', fontSize: 16, marginTop: 60 },
 });

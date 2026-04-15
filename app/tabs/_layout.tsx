@@ -2,13 +2,15 @@ import * as Battery from 'expo-battery';
 import { Stack } from 'expo-router';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { syncStudentData } from '../../services/api';
+import { useEffect, useState } from 'react';
+import { syncStudentData, updatePushToken } from '../../services/api';
+import { registerForPushNotificationsAsync, setupNotificationListeners } from '../../services/notifications';
+import { AnnouncementModal } from '../../components/AnnouncementModal';
 
 const LOCATION_TASK_NAME = 'background-location-task';
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
-let lastSyncTime = 0; // Simple in-memory throttle for the session
+let lastSyncTime = 0;
 
-// --- BACKGROUND WORKER ---
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
   if (error) {
     console.error("Background Location Error:", error);
@@ -17,7 +19,6 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
   if (data) {
     try {
       const now = Date.now();
-      // Throttle to 15 minutes
       if (now - lastSyncTime < FIFTEEN_MINUTES) return;
 
       const role = await AsyncStorage.getItem('userRole');
@@ -49,14 +50,64 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
 });
 
 export default function RootLayout() {
+  const [announcement, setAnnouncement] = useState<{ title: string; body: string } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initializeNotifications = async () => {
+      const studentId = await AsyncStorage.getItem('studentId');
+      if (!studentId) return;
+
+      const token = await registerForPushNotificationsAsync();
+      if (token && isMounted) {
+        await updatePushToken(studentId, token);
+      }
+    };
+
+    initializeNotifications();
+
+    const cleanup = setupNotificationListeners(
+      (notification) => {
+        const { title, body } = notification.request.content;
+        if (isMounted) {
+          setAnnouncement({ title: title ?? 'Announcement', body: body ?? '' });
+          import('react-native').then(({ DeviceEventEmitter }) => {
+            DeviceEventEmitter.emit('refreshAlerts');
+          });
+        }
+      },
+      (response) => {
+        const { title, body } = response.notification.request.content;
+        if (isMounted) {
+          setAnnouncement({ title: title ?? 'Announcement', body: body ?? '' });
+          import('react-native').then(({ DeviceEventEmitter }) => {
+            DeviceEventEmitter.emit('refreshAlerts');
+          });
+        }
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      cleanup();
+    };
+  }, []);
+
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      {/* Login Screen comes first */}
-      <Stack.Screen name="index" /> 
-      {/* Tab Group follows after login */}
-      <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-      {/* Admin Tab Group */}
-      <Stack.Screen name="(adminTabs)" options={{ animation: 'fade' }} />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" /> 
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(adminTabs)" options={{ animation: 'fade' }} />
+      </Stack>
+
+      <AnnouncementModal
+        visible={!!announcement}
+        title={announcement?.title ?? ''}
+        message={announcement?.body ?? ''}
+        onClose={() => setAnnouncement(null)}
+      />
+    </>
   );
 }

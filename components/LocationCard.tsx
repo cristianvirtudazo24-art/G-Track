@@ -1,4 +1,3 @@
-// components/LocationCard.tsx
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import React from 'react';

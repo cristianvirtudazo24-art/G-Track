@@ -58,7 +58,6 @@ export const useLocation = () => {
 
     (async () => {
       try {
-        // Only proceed if studentId or role is student
         const role = await AsyncStorage.getItem('userRole');
         const storedStudentId = await AsyncStorage.getItem('studentId');
         
@@ -74,12 +73,11 @@ export const useLocation = () => {
         let current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         setLocation(current);
 
-        // Watch for changes with 15-minute throttle
         watchSubscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.Balanced,
             distanceInterval: 10,
-            timeInterval: 60000, // Check every minute, but sync logic handles 15m
+            timeInterval: 60000, 
           },
           async (newLocation) => {
             setLocation(newLocation);
@@ -95,7 +93,6 @@ export const useLocation = () => {
                 longitude: newLocation.coords.longitude,
                 battery: batteryPercent,
                 status: "Active",
-                timestamp: new Date().toISOString()
               });
 
               if (success) lastSyncTime.current = now;
@@ -114,4 +111,4 @@ export const useLocation = () => {
   }, []);
 
   return { location, errorMsg, isSharing, startContinuousSharing, stopContinuousSharing };
-};
+};

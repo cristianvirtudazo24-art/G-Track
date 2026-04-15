@@ -15,40 +15,43 @@ export default function LoginScreen() {
   const [role, setRole] = useState<'student' | 'admin'>('student');
 
   const handleSignIn = async () => {
-    // Basic validation
-    if (!email || !password || (role === 'student' && !studentId)) {
-      Alert.alert("Error", "Please fill in all required fields");
+    const isStudent = role === 'student';
+    const identifier = isStudent ? studentId : email;
+
+    if (!identifier || !password) {
+      Alert.alert("Error", `Please fill in your ${isStudent ? 'Student ID' : 'Email'} and Password`);
       return;
     }
 
     try {
-      // 1. Verify with the Unified Login Logic (Real or Mock)
-      const response: any = await login(email, password, role, role === 'student' ? studentId : undefined);
+      const response: any = await login(
+        isStudent ? "" : email, 
+        password, 
+        role, 
+        isStudent ? studentId : undefined
+      );
 
       if (response.success) {
         console.log("✅ Login Success!");
 
-        // 2. Persist session so background services can identify the student
         await AsyncStorage.setItem('userRole', role);
-        if (role === 'student' && response.user) {
+        if (isStudent && response.user) {
           await AsyncStorage.setItem('studentId', studentId);
-          await AsyncStorage.setItem('studentEmail', email);
+          await AsyncStorage.setItem('studentEmail', response.user.email || "");
           if (response.user.name) await AsyncStorage.setItem('studentName', response.user.name);
           if (response.user.gender) await AsyncStorage.setItem('studentGender', response.user.gender);
 
-          // START THE CONTINUOUS SHARING ENGINE
           await startContinuousSharing(studentId);
         }
 
-        // 3. Move to the correct interface
         if (role === 'admin') {
           router.replace('/tabs/(adminTabs)/dashboard');
         } else {
           router.replace('/tabs/home');
         }
       }
-    } catch (error) {
-      Alert.alert("Login Failed", "Invalid credentials for G!Track Test Mode.");
+    } catch (error: any) {
+      Alert.alert("Login Failed", error.message || "Invalid credentials.");
     }
   };
 
@@ -84,14 +87,29 @@ export default function LoginScreen() {
 
         <Text style={styles.welcomeText}>{role === 'student' ? 'Student Sign In' : 'Admin Sign In'}</Text>
 
-        <Text style={styles.label}>Email / Username</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Enter email"
-          autoCapitalize="none"
-        />
+        {role === 'admin' ? (
+          <>
+            <Text style={styles.label}>Email / Username</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Enter email"
+              autoCapitalize="none"
+            />
+          </>
+        ) : (
+          <>
+            <Text style={styles.label}>Student ID</Text>
+            <TextInput
+              style={styles.input}
+              value={studentId}
+              onChangeText={setStudentId}
+              placeholder="Enter Student ID"
+              autoCapitalize="characters"
+            />
+          </>
+        )}
 
         <Text style={styles.label}>Password</Text>
         <TextInput
@@ -101,18 +119,6 @@ export default function LoginScreen() {
           secureTextEntry
           placeholder="Enter password"
         />
-
-        {role === 'student' && (
-          <>
-            <Text style={styles.label}>Student ID</Text>
-            <TextInput
-              style={styles.input}
-              value={studentId}
-              onChangeText={setStudentId}
-              placeholder="Enter Student ID"
-            />
-          </>
-        )}
 
         <TouchableOpacity style={styles.button} onPress={handleSignIn}>
           <Text style={styles.buttonText}>Sign In</Text>

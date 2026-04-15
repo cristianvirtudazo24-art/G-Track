@@ -23,7 +23,6 @@ export const BlackoutModal = ({ isVisible, onClose, onSubmit }: Props) => {
         style={styles.overlay}
       >
         <View style={styles.modalContent}>
-          {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.title}>Blackout Alert</Text>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>

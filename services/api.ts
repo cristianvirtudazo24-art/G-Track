@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL, API_TIMEOUT } from '../constants/Network';
 
-// Configuring default axios instance for the app
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: API_TIMEOUT,
@@ -11,12 +10,9 @@ const apiClient = axios.create({
   },
 });
 
-/**
- * 1. FETCH ALL STUDENTS (For Admin Dashboard)
- */
 export const getStudents = async () => {
   try {
-    const response = await apiClient.get('/students');
+    const response = await apiClient.get('/status/all');
     return response.data;
   } catch (error) {
     console.error("❌ API Error: Fetch Students Failed", error);
@@ -24,32 +20,51 @@ export const getStudents = async () => {
   }
 };
 
-/**
- * 2. FETCH ALL ALERTS (For Admin Dashboard)
- */
 export const getAlerts = async () => {
   try {
-    const response = await apiClient.get('/alerts');
-    return response.data;
+    const response = await apiClient.get('/location/all');
+    const locations = response.data || [];
+    
+    return locations
+      .filter((loc: any) => loc.sos_status === 'help')
+      .map((loc: any) => ({
+        id: String(loc.id),
+        type: 'danger',
+        text: `SOS Alert: ${loc.student?.name || 'Unknown Student'}`,
+        timestamp: loc.recorded_at,
+        studentId: loc.student?.student_id
+      }));
   } catch (error) {
     console.error("❌ API Error: Fetch Alerts Failed", error);
     return [];
   }
 };
 
-/**
- * 3. CONTINUOUS LOCATION SYNC
- */
+export const getRecentLocations = async () => {
+  try {
+    const response = await apiClient.get('/location/all');
+    return response.data;
+  } catch (error) {
+    console.error("❌ API Error: Fetch Locations Failed", error);
+    return [];
+  }
+};
+
 export const syncStudentData = async (payload: {
-  studentId: string;
+  studentId: string | number;
   latitude: number;
   longitude: number;
   battery: number;
   status: string;
-  timestamp: string;
+  timestamp?: string;
 }) => {
   try {
-    const response = await apiClient.post('/location-updates', payload);
+    const response = await apiClient.post('/location/update', {
+      student_id: Number(payload.studentId),
+      latitude: payload.latitude,
+      longitude: payload.longitude,
+      sos_status: payload.status === 'Safe' ? 'safe' : 'help',
+    });
     return response.data;
   } catch (error) {
     console.error("❌ API Error: Location Sync Failed", error);
@@ -57,16 +72,16 @@ export const syncStudentData = async (payload: {
   }
 };
 
-/**
- * 4. SMART SOS ALERT
- */
 export const sendSOS = async (payload: {
   type: 'emergency' | 'safe' | 'help';
   location: any;
   studentId: string;
 }) => {
   try {
-    const response = await apiClient.post('/sos-alert', payload);
+    const response = await apiClient.post('/location/sos', {
+      student_id: payload.studentId,
+      sos_status: payload.type === 'safe' ? 'safe' : 'help'
+    });
     return response.data;
   } catch (error) {
     console.error("❌ API Error: SOS Alert Failed", error);
@@ -74,9 +89,6 @@ export const sendSOS = async (payload: {
   }
 };
 
-/**
- * 5. EMERGENCY VIDEO UPLOAD
- */
 export const uploadEmergencyVideo = async (videoUri: string, studentId: string) => {
   try {
     const formData = new FormData();
@@ -93,19 +105,59 @@ export const uploadEmergencyVideo = async (videoUri: string, studentId: string) 
   }
 };
 
-/**
- * 6. BLACKOUT ALERT
- */
 export const sendBlackoutAlert = async (payload: {
   studentId: string;
   battery: number;
   message?: string;
 }) => {
   try {
-    const response = await apiClient.post('/blackout-alert', payload);
+    const response = await apiClient.post('/notifications/send', {
+      student_id: payload.studentId,
+      target: 'blackout',
+      message: payload.message || 'Blackout Alert'
+    });
     return response.data;
   } catch (error) {
     console.error("❌ API Error: Blackout Alert Failed", error);
     return null;
+  }
+};
+
+export const sendAnnouncement = async (payload: {
+  message: string;
+  targetClass: 'all' | '2026' | '2027' | '2028';
+}) => {
+  try {
+    const response = await apiClient.post('/notifications/send', {
+      target: payload.targetClass,
+      message: payload.message
+    });
+    return response.data;
+  } catch (error) {
+    console.error("❌ API Error: Sending Announcement Failed", error);
+    return null;
+  }
+};
+
+export const updatePushToken = async (studentId: string | number, token: string) => {
+  try {
+    const response = await apiClient.post('/update-push-token', {
+      student_id: studentId,
+      push_token: token
+    });
+    return response.data;
+  } catch (error) {
+    console.error("❌ API Error: Token Update Failed", error);
+    return null;
+  }
+};
+
+export const getStudentNotifications = async (studentId: string | number) => {
+  try {
+    const response = await apiClient.get(`/notifications/${studentId}`);
+    return response.data;
+  } catch (error) {
+    console.error("❌ API Error: Fetch Student Notifications Failed", error);
+    return [];
   }
 };

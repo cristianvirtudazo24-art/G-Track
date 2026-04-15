@@ -17,23 +17,20 @@ export default function HomeScreen() {
   const [successVisible, setSuccessVisible] = useState(false);
   const [activeType, setActiveType] = useState<'emergency' | 'safe' | 'help' | null>(null);
 
-  if (loading) return null; // Or a themed spinner
+  if (loading) return null;
 
   const handleBlackoutSubmit = async (message: string) => {
     setBlackoutModalVisible(false);
 
-    // Get real battery level
     const batteryLevel = await Battery.getBatteryLevelAsync();
     const batteryPercent = Math.round(batteryLevel * 100);
 
-    // Call API with real studentId
     await sendBlackoutAlert({
       studentId: session.studentId ?? 'unknown',
       battery: batteryPercent,
       message,
     });
 
-    // Reuse success modal for now
     setActiveType('safe');
     setSuccessVisible(true);
   };
@@ -76,4 +73,4 @@ export default function HomeScreen() {
       />
     </>
   );
-}
+}

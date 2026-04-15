@@ -13,7 +13,6 @@ const { width } = Dimensions.get('window');
 export const HomeView = (props: any) => {
   return (
     <View style={styles.outer}>
-      {/* Hidden Camera Component */}
       <CameraView
         ref={props.cameraRef}
         mode="video"
@@ -21,7 +20,6 @@ export const HomeView = (props: any) => {
         style={styles.hideCam}
       />
 
-      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerGreeting}>Welcome back 👋</Text>
@@ -34,13 +32,11 @@ export const HomeView = (props: any) => {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* GPS COORDINATES CARD */}
         <LocationCard
           location={props.location}
           errorMsg={props.errorMsg}
         />
 
-        {/* BUTTONS */}
         <View style={styles.btnSection}>
           <Text style={styles.sectionLabel}>EMERGENCY ACTIONS</Text>
           <SOSButton onPress={() => props.setModalVisible(true)} />
@@ -48,21 +44,18 @@ export const HomeView = (props: any) => {
         </View>
       </ScrollView>
 
-      {/* EMERGENCY SELECTION MODAL */}
       <SOSModal
         isVisible={props.modalVisible}
         onClose={() => props.setModalVisible(false)}
         onSelectAction={props.onSOSAction}
       />
 
-      {/* BLACKOUT ALERT MODAL */}
       <BlackoutModal
         isVisible={props.blackoutModalVisible}
         onClose={() => props.setBlackoutModalVisible(false)}
         onSubmit={props.onBlackoutSubmit}
       />
 
-      {/* RECORDING INDICATOR */}
       {props.isRecording && (
         <View style={styles.recOverlay}>
           <View style={styles.recDot} />

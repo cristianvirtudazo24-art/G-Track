@@ -13,7 +13,6 @@ export const SOSModal = ({ isVisible, onClose, onSelectAction }: Props) => {
     <Modal visible={isVisible} transparent animationType="fade">
       <View style={styles.overlay}>
         <View style={styles.modalContent}>
-          {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.title}>SOS & Safety</Text>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
@@ -26,7 +25,6 @@ export const SOSModal = ({ isVisible, onClose, onSelectAction }: Props) => {
             <MaterialCommunityIcons name="alert-octagon" size={36} color="#E8313A" />
           </View>
 
-          {/* Action Buttons */}
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: '#E8313A' }]}
             onPress={() => onSelectAction('emergency')}

@@ -36,7 +36,6 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Hero Header */}
       <View style={styles.header}>
         <View style={styles.avatarCircle}>
           <MaterialCommunityIcons name="account" size={52} color="#1E2F97" />
@@ -55,7 +54,6 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        {/* Info Card */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>User Information</Text>
           <View style={styles.infoRow}>
@@ -79,7 +77,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Sign Out */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.85}>
           <MaterialCommunityIcons name="logout" size={20} color="#EF4444" />
           <Text style={styles.logoutText}>Sign Out</Text>

@@ -1,19 +1,96 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { FlatList, StyleSheet, Text, View, RefreshControl, ActivityIndicator, DeviceEventEmitter } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getStudentNotifications } from '../../../services/api';
 
-const MOCK_ALERTS = [
-  { id: '1', title: 'Emergency Drill', body: 'Earthquake drill at 2:00 PM. Please proceed to the open field.', time: '10 mins ago', type: 'info' },
-  { id: '2', title: 'Security Alert', body: 'Unidentified person reported near Gate 2. Stay in your classrooms.', time: '1 hour ago', type: 'warning' },
-];
+interface AlertItem {
+  id: string;
+  title?: string;
+  body: string;
+  time: string;
+  type: 'info' | 'warning' | 'danger';
+}
 
-const ALERT_CONFIG: Record<string, { color: string; bg: string; icon: string }> = {
-  info:    { color: '#1E2F97', bg: '#EEF2FF', icon: 'information' },
-  warning: { color: '#F97316', bg: '#FFF7ED', icon: 'alert' },
-  danger:  { color: '#E8313A', bg: '#FEE2E2', icon: 'alert-octagon' },
+const ALERT_CONFIG: Record<string, { color: string; bg: string; icon: string; defaultTitle: string }> = {
+  info:    { color: '#1E2F97', bg: '#EEF2FF', icon: 'information', defaultTitle: 'Announcement' },
+  warning: { color: '#F97316', bg: '#FFF7ED', icon: 'alert', defaultTitle: 'Security Warning' },
+  danger:  { color: '#E8313A', bg: '#FEE2E2', icon: 'alert-octagon', defaultTitle: 'Urgent Alert' },
 };
 
 export default function AlertsScreen() {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const studentId = await AsyncStorage.getItem('studentId');
+      if (!studentId) {
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      const rawData = await getStudentNotifications(studentId);
+      const dataArray = Array.isArray(rawData) 
+        ? rawData 
+        : (rawData?.notifications || rawData?.data || []);
+
+      const mapped = dataArray.map((item: any) => ({
+        id: String(item.id),
+        title: item.title || ALERT_CONFIG[item.type]?.defaultTitle || 'Admin Broadcast',
+        body: item.text || item.message || 'No message content',
+        time: formatTimestamp(item.timestamp || item.created_at),
+        type: item.type || 'info'
+      }));
+      setAlerts(mapped);
+    } catch (error) {
+      console.error("Failed to fetch alerts:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAlerts();
+
+    const sub = DeviceEventEmitter.addListener('refreshAlerts', fetchAlerts);
+    return () => sub.remove();
+  }, [fetchAlerts]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchAlerts();
+  };
+
+  const formatTimestamp = (ts: string) => {
+    if (!ts) return 'recently';
+    try {
+      const date = new Date(ts);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffMins < 1440) return `${Math.floor(diffMins/60)}h ago`;
+      return date.toLocaleDateString();
+    } catch {
+      return ts;
+    }
+  };
+
+  if (loading && !refreshing) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color="#1E2F97" />
+        <Text style={styles.loadingText}>Loading Announcements...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -22,10 +99,13 @@ export default function AlertsScreen() {
       </View>
 
       <FlatList
-        data={MOCK_ALERTS}
+        data={alerts}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#F97316']} />
+        }
         ListEmptyComponent={<Text style={styles.emptyText}>No alerts at this time.</Text>}
         renderItem={({ item }) => {
           const cfg = ALERT_CONFIG[item.type] ?? ALERT_CONFIG.info;
@@ -51,6 +131,8 @@ export default function AlertsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F7FF' },
+  centered: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 10, color: '#1E2F97', fontWeight: '600' },
   header: {
     backgroundColor: '#1E2F97',
     paddingTop: 55,
