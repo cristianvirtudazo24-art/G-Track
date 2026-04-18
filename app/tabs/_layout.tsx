@@ -2,9 +2,9 @@ import * as Battery from 'expo-battery';
 import { Stack } from 'expo-router';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
-import { syncStudentData, updatePushToken } from '../../services/api';
-import { registerForPushNotificationsAsync, setupNotificationListeners } from '../../services/notifications';
+import React, { useEffect, useState, useRef } from 'react';
+import { syncStudentData, updatePushToken, getStudentNotifications } from '../../services/api';
+import { registerForPushNotificationsAsync, setupNotificationListeners, scheduleLocalNotification } from '../../services/notifications';
 import { AnnouncementModal } from '../../components/AnnouncementModal';
 
 const LOCATION_TASK_NAME = 'background-location-task';
@@ -12,84 +12,94 @@ const FIFTEEN_MINUTES = 15 * 60 * 1000;
 let lastSyncTime = 0;
 
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
-  if (error) {
-    console.error("Background Location Error:", error);
-    return;
-  }
+  if (error) return;
   if (data) {
     try {
       const now = Date.now();
       if (now - lastSyncTime < FIFTEEN_MINUTES) return;
-
       const role = await AsyncStorage.getItem('userRole');
       if (role !== 'student') return;
-
-      const studentId = await AsyncStorage.getItem('studentId');
-      if (!studentId) return;
-
+      const dbId = await AsyncStorage.getItem('userDbId');
+      if (!dbId) return;
       const { locations } = data;
       const location = locations[0];
-      
       const batteryLevel = await Battery.getBatteryLevelAsync();
       const batteryPercent = Math.round(batteryLevel * 100);
-
       await syncStudentData({
-        studentId,
+        studentId: dbId,
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-        battery: batteryPercent, 
+        battery: batteryPercent,
         status: "Active",
         timestamp: new Date().toISOString()
       });
-
       lastSyncTime = now;
-    } catch (err) {
-      console.error("Background Sync Task Failed:", err);
-    }
+    } catch (err) {}
   }
 });
 
 export default function RootLayout() {
   const [announcement, setAnnouncement] = useState<{ title: string; body: string } | null>(null);
+  const lastSeenIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-
     const initializeNotifications = async () => {
-      const studentId = await AsyncStorage.getItem('studentId');
-      if (!studentId) return;
-
+      const dbId = await AsyncStorage.getItem('userDbId');
+      if (!dbId) return;
       const token = await registerForPushNotificationsAsync();
-      if (token && isMounted) {
-        await updatePushToken(studentId, token);
-      }
+      if (token && isMounted) await updatePushToken(dbId, token);
+    };
+
+    const pollForAnnouncements = async () => {
+      try {
+        const dbId = await AsyncStorage.getItem('userDbId');
+        if (!dbId || !isMounted) return;
+
+        const res = await getStudentNotifications(dbId);
+        const notifications = res?.notifications || [];
+        const latest = notifications.filter((n: any) => n.type === 'broadcast')[0];
+
+        if (latest && latest.id !== lastSeenIdRef.current) {
+          if (lastSeenIdRef.current !== null) {
+            scheduleLocalNotification(
+              "New Campus Announcement",
+              latest.message || "You have a new broadcast message."
+            );
+            setAnnouncement({ title: "Admin Broadcast", body: latest.message });
+            const { DeviceEventEmitter } = require('react-native');
+            DeviceEventEmitter.emit('refreshAlerts');
+          }
+          lastSeenIdRef.current = latest.id;
+        }
+      } catch (err) {}
     };
 
     initializeNotifications();
+    const interval = setInterval(pollForAnnouncements, 30000);
 
     const cleanup = setupNotificationListeners(
       (notification) => {
         const { title, body } = notification.request.content;
         if (isMounted) {
           setAnnouncement({ title: title ?? 'Announcement', body: body ?? '' });
-          import('react-native').then(({ DeviceEventEmitter }) => {
-            DeviceEventEmitter.emit('refreshAlerts');
-          });
+          const { DeviceEventEmitter } = require('react-native');
+          DeviceEventEmitter.emit('refreshAlerts');
         }
       },
       (response) => {
         const { title, body } = response.notification.request.content;
         if (isMounted) {
           setAnnouncement({ title: title ?? 'Announcement', body: body ?? '' });
-          import('react-native').then(({ DeviceEventEmitter }) => {
-            DeviceEventEmitter.emit('refreshAlerts');
-          });
+          const { DeviceEventEmitter } = require('react-native');
+          DeviceEventEmitter.emit('refreshAlerts');
         }
       }
     );
 
     return () => {
       isMounted = false;
+      clearInterval(interval);
       cleanup();
     };
   }, []);
@@ -97,11 +107,10 @@ export default function RootLayout() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" /> 
+        <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="(adminTabs)" options={{ animation: 'fade' }} />
       </Stack>
-
       <AnnouncementModal
         visible={!!announcement}
         title={announcement?.title ?? ''}

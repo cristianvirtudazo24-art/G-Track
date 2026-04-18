@@ -12,11 +12,11 @@ export const useLocation = () => {
   const [isSharing, setIsSharing] = useState(false);
   
   const lastSyncTime = useRef<number>(0);
-  const studentIdRef = useRef<string | null>(null);
+  const dbIdRef = useRef<string | null>(null);
   const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
-  const startContinuousSharing = async (studentId: string) => {
-    studentIdRef.current = studentId;
+  const startContinuousSharing = async (dbId: string) => {
+    dbIdRef.current = dbId;
     setIsSharing(true);
     try {
       const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
@@ -59,10 +59,10 @@ export const useLocation = () => {
     (async () => {
       try {
         const role = await AsyncStorage.getItem('userRole');
-        const storedStudentId = await AsyncStorage.getItem('studentId');
+        const dbId = await AsyncStorage.getItem('userDbId');
         
         if (role !== 'student') return;
-        if (storedStudentId) studentIdRef.current = storedStudentId;
+        if (dbId) dbIdRef.current = dbId;
 
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
@@ -83,12 +83,12 @@ export const useLocation = () => {
             setLocation(newLocation);
             const now = Date.now();
 
-            if (now - lastSyncTime.current > FIFTEEN_MINUTES && studentIdRef.current) {
+            if (now - lastSyncTime.current > FIFTEEN_MINUTES && dbIdRef.current) {
               const batteryLevel = await Battery.getBatteryLevelAsync();
               const batteryPercent = Math.round(batteryLevel * 100);
 
               const success = await syncStudentData({
-                studentId: studentIdRef.current,
+                studentId: dbIdRef.current,
                 latitude: newLocation.coords.latitude,
                 longitude: newLocation.coords.longitude,
                 battery: batteryPercent,

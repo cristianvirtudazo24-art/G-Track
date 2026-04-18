@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 export interface UserSession {
   role: 'student' | 'admin' | null;
   studentId: string | null;
+  dbId: string | null;
   email: string | null;
   name: string | null;
   gender: string | null;
@@ -13,6 +14,7 @@ export const useUser = () => {
   const [session, setSession] = useState<UserSession>({
     role: null,
     studentId: null,
+    dbId: null,
     email: null,
     name: null,
     gender: null,
@@ -23,6 +25,7 @@ export const useUser = () => {
     try {
       const role = await AsyncStorage.getItem('userRole') as 'student' | 'admin' | null;
       const studentId = await AsyncStorage.getItem('studentId');
+      const dbId = await AsyncStorage.getItem('userDbId');
       const email = await AsyncStorage.getItem('studentEmail');
       const name = await AsyncStorage.getItem('studentName');
       const gender = await AsyncStorage.getItem('studentGender');
@@ -30,6 +33,7 @@ export const useUser = () => {
       setSession({
         role,
         studentId,
+        dbId,
         email,
         name,
         gender,
@@ -48,10 +52,11 @@ export const useUser = () => {
   const clearSession = async () => {
     await AsyncStorage.removeItem('userRole');
     await AsyncStorage.removeItem('studentId');
+    await AsyncStorage.removeItem('userDbId');
     await AsyncStorage.removeItem('studentEmail');
     await AsyncStorage.removeItem('studentName');
     await AsyncStorage.removeItem('studentGender');
-    setSession({ role: null, studentId: null, email: null, name: null, gender: null });
+    setSession({ role: null, studentId: null, dbId: null, email: null, name: null, gender: null });
   };
 
   return { session, loading, reloadSession: loadSession, clearSession };

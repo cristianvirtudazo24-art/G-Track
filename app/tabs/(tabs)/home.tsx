@@ -26,7 +26,7 @@ export default function HomeScreen() {
     const batteryPercent = Math.round(batteryLevel * 100);
 
     await sendBlackoutAlert({
-      studentId: session.studentId ?? 'unknown',
+      studentId: session.dbId ?? 'unknown',
       battery: batteryPercent,
       message,
     });
@@ -39,14 +39,14 @@ export default function HomeScreen() {
     setMenuVisible(false);
     setActiveType(type);
 
-    const studentId = session.studentId ?? 'unknown';
+    const studentId = session.dbId ?? 'unknown';
 
     await sendSOS({ type, location, studentId });
 
     if (type === 'emergency') {
       const videoUri = await startEmergencyCapture();
       if (videoUri) {
-        await uploadEmergencyVideo(videoUri, studentId);
+        await uploadEmergencyVideo(videoUri, String(studentId));
       }
     }
     setSuccessVisible(true);

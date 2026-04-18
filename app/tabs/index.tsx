@@ -36,12 +36,14 @@ export default function LoginScreen() {
 
         await AsyncStorage.setItem('userRole', role);
         if (isStudent && response.user) {
+          const dbId = String(response.user.id);
+          await AsyncStorage.setItem('userDbId', dbId);
           await AsyncStorage.setItem('studentId', studentId);
           await AsyncStorage.setItem('studentEmail', response.user.email || "");
           if (response.user.name) await AsyncStorage.setItem('studentName', response.user.name);
           if (response.user.gender) await AsyncStorage.setItem('studentGender', response.user.gender);
 
-          await startContinuousSharing(studentId);
+          await startContinuousSharing(dbId);
         }
 
         if (role === 'admin') {

@@ -1,110 +1,73 @@
-# G!Track Laravel Integration Guide (For Admin Team)
+# G!Track Laravel Integration Guide (Updated)
 
-This document provides the technical requirements for the Laravel backend to support the **G!Track-Mobile** application.
+This document provides the exact technical requirements for the Laravel backend to match the **G!Track-Mobile** application logic.
 
 ## 1. Network Requirements
-The Mobile App connects to Laravel via its **Internal IP Address**.
-*   **Command**: `php artisan serve --host 0.0.0.0`
-*   **Port**: `8000` (Default)
-*   **CORS**: Ensure your `config/cors.php` allows requests from all origins (`'*'`) or specifically from the mobile IP.
+*   **Internal IP Address**: The app connects via your LAN IP (e.g., `192.168.1.XX`).
+*   **CORS**: Ensure `config/cors.php` allows requests from the mobile device.
 
-## 2. Required API Endpoints
-
-All endpoints should be prefixed with `/api` (as per Laravel `api.php` defaults).
-
-### A. Authentication
-*   **Method**: `POST`
-*   **Path**: `/login`
-*   **Payload**:
-    ```json
-    {
-      "email": "user@example.com",
-      "password": "...",
-      "role": "student|admin",
-      "student_id": "STU123" (optional)
-    }
-    ```
-*   **Response**: `{ "success": true, "role": "student" }`
+## 2. Global Rule: Student ID Handling
+> [!IMPORTANT]
+> To improve reliability, the mobile app now uses the **Numeric Database Primary Key (`id`)** for most sync operations. 
+> Your controllers should use: `$student = Student::find($request->student_id)` or `$student = Student::where('student_id', $request->student_id)->orWhere('id', $request->student_id)->first();`
 
 ---
 
-### B. Student Dashboard (For Web Admin)
+## 3. Required API Endpoints
+
+### A. Location Sync (Heartbeat)
+*   **Method**: `POST`
+*   **Path**: `/api/location/update`
+*   **Payload**:
+    ```json
+    {
+      "student_id": 15,
+      "latitude": 10.2952,
+      "longitude": 123.8955,
+      "sos_status": "safe|help"
+    }
+    ```
+
+### B. Student-Admin Messaging (Replies)
+*   **Method**: `POST`
+*   **Path**: `/api/notifications/send`
+*   **Payload for Student Reply**:
+    ```json
+    {
+      "student_id": 15,
+      "target": "student_message",
+      "message": "Hello admin, I have a question..."
+    }
+    ```
+*   **Controller Logic**: Ensure this creates a record in your `notifications` table with `sender_type = 'student'`.
+
+### C. Fetching Alerts & Messages
 *   **Method**: `GET`
-*   **Path**: `/students`
-*   **Response**: Array of student objects
+*   **Path**: `/api/notifications/{student_db_id}`
+*   **Response**:
     ```json
-    [
-      { "id": "1", "name": "John Doe", "gender": "male", "latitude": 10.29, "longitude": 123.89, "status": "Active" }
-    ]
+    {
+      "success": true,
+      "notifications": [
+        { "id": 1, "type": "broadcast|personal", "message": "...", "created_at": "...", "sender_type": "admin|student" }
+      ]
+    }
     ```
 
----
-
-### C. Alerts History
-*   **Method**: `GET`
-*   **Path**: `/alerts`
-*   **Response**: Array of alert objects
-    ```json
-    [
-      { "id": "101", "type": "warning", "text": "SOS Triggered", "timestamp": "2024-03-20T10:00:00Z" }
-    ]
-    ```
-
----
-
-### D. Location Updates (Continuous Sync)
+### D. Push Token Registration
 *   **Method**: `POST`
-*   **Path**: `/location-updates`
+*   **Path**: `/api/update-push-token`
 *   **Payload**:
     ```json
     {
-      "studentId": "...",
-      "latitude": 10.29,
-      "longitude": 123.89,
-      "battery": 85,
-      "status": "Safe",
-      "timestamp": "ISO-STRING"
+      "student_id": 15,
+      "push_token": "Expo-Push-Token[...]"
     }
     ```
 
 ---
 
-### E. SOS Alerts
-*   **Method**: `POST`
-*   **Path**: `/sos-alert`
-*   **Payload**:
-    ```json
-    {
-      "type": "emergency|safe|help",
-      "studentId": "...",
-      "location": { "latitude": 10, "longitude": 123 }
-    }
-    ```
-
----
-
-### F. Blackout Alert (Power Loss)
-*   **Method**: `POST`
-*   **Path**: `/blackout-alert`
-*   **Payload**:
-    ```json
-    {
-      "studentId": "...",
-      "battery": 15,
-      "message": "Power is out in my area"
-    }
-    ```
-
----
-
-### G. Emergency Video Upload
-*   **Method**: `POST`
-*   **Path**: `/upload-video`
-*   **Header**: `Content-Type: multipart/form-data`
-*   **Fields**:
-    *   `video`: (The file)
-    *   `student_id`: "..."
-
-## 3. Database Reminders
-*   Ensure your `students` table has `latitude`, `longitude`, and `status` columns for real-time tracking.
-*   Ensure your `alerts` table can store the `type` (info, warning, danger).
+## 4. Important Database Note
+Please ensure your `Student` model allows the following updates:
+1.  `$student->status = true` (marking online when GPS is received).
+2.  `$student->last_update = now()` (timestamp of the last sync).
