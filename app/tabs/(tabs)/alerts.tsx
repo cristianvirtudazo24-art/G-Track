@@ -1,39 +1,74 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-  FlatList, StyleSheet, Text, View, RefreshControl, 
-  ActivityIndicator, DeviceEventEmitter, TouchableOpacity, 
-  ScrollView, useWindowDimensions, Modal, TextInput, 
-  KeyboardAvoidingView, Platform, Keyboard 
-} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, DeviceEventEmitter, FlatList, Keyboard, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal } from 'react-native';
 import { getStudentNotifications, sendStudentMessage } from '../../../services/api';
 
-const ALERT_CONFIG: Record<string, { color: string; bg: string; icon: string }> = {
-  info:    { color: '#1E2F97', bg: '#EEF2FF', icon: 'information' },
-  warning: { color: '#F97316', bg: '#FFF7ED', icon: 'alert' },
-  danger:  { color: '#E8313A', bg: '#FEE2E2', icon: 'alert-octagon' },
-  broadcast: { color: '#1E2F97', bg: '#EEF2FF', icon: 'bullhorn-variant' },
-  personal: { color: '#F97316', bg: '#FFF7ED', icon: 'message-text' },
+interface AlertItem {
+  id: string;
+  title?: string;
+  body: string;
+  time: string;
+  type: 'info' | 'warning' | 'danger';
+}
+
+interface MessageItem {
+  id: string;
+  sender_type: 'student' | 'admin';
+  message: string;
+  created_at: string;
+}
+
+const ALERT_CONFIG: Record<string, { color: string; bg: string; icon: string; defaultTitle: string }> = {
+  info: { color: '#1E2F97', bg: '#EEF2FF', icon: 'information', defaultTitle: 'Announcement' },
+  warning: { color: '#F97316', bg: '#FFF7ED', icon: 'alert', defaultTitle: 'Security Warning' },
+  danger: { color: '#E8313A', bg: '#FEE2E2', icon: 'alert-octagon', defaultTitle: 'Urgent Alert' },
 };
 
 export default function AlertsScreen() {
-  const { width } = useWindowDimensions();
-  const scrollViewRef = useRef<ScrollView>(null);
-  
-  const [activeTab, setActiveTab] = useState<'broadcast' | 'messages'>('broadcast');
-  const [broadcasts, setBroadcasts] = useState<any[]>([]);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'broadcasts' | 'messages'>('broadcasts');
+  const [activeSubTab, setActiveSubTab] = useState<'unread' | 'read'>('unread');
+
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [readAlertIds, setReadAlertIds] = useState<string[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
-  const [selectedAlert, setSelectedAlert] = useState<any>(null);
-  const [showDetail, setShowDetail] = useState(false);
-  
-  const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
 
-  const fetchNotifications = useCallback(async () => {
+  const formatTime = (ts: string) => {
+    if (!ts) return '';
+    try {
+      const date = new Date(ts);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return ts;
+    }
+  };
+
+  const loadReadAlerts = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('readAlerts');
+      if (stored) {
+        setReadAlertIds(JSON.parse(stored));
+      }
+    } catch (err) { }
+  };
+
+  const markAlertAsRead = async (id: string) => {
+    if (!readAlertIds.includes(id)) {
+      const newIds = [...readAlertIds, id];
+      setReadAlertIds(newIds);
+      try {
+        await AsyncStorage.setItem('readAlerts', JSON.stringify(newIds));
+      } catch (err) { }
+    }
+  };
+
+  const fetchData = useCallback(async () => {
     try {
       const dbId = await AsyncStorage.getItem('userDbId');
       if (!dbId) {
@@ -42,13 +77,42 @@ export default function AlertsScreen() {
         return;
       }
 
-      const res = await getStudentNotifications(dbId);
-      const data = res?.notifications || [];
+      const alertsRaw = await getStudentNotifications(dbId);
 
-      setBroadcasts(data.filter((n: any) => n.type === 'broadcast'));
-      setMessages(data.filter((n: any) => n.type !== 'broadcast').reverse()); 
+      const dataArray = Array.isArray(alertsRaw)
+        ? alertsRaw
+        : (alertsRaw?.notifications || alertsRaw?.data || []);
+
+      const messageData = dataArray.filter((item: any) => 
+        item.type === 'admin_reply' || 
+        item.type === 'student_message' || 
+        item.type === 'two_way' || 
+        item.type === 'personal' || 
+        item.target === 'student_message'
+      );
+      const broadcastData = dataArray.filter((item: any) => !messageData.includes(item));
+
+      const mappedAlerts = broadcastData.map((item: any) => ({
+        id: String(item.id),
+        title: item.title || ALERT_CONFIG[item.type]?.defaultTitle || 'Admin Broadcast',
+        body: item.text || item.message || 'No message content',
+        time: formatTime(item.timestamp || item.created_at),
+        type: item.type || 'info'
+      }));
+
+      setAlerts(mappedAlerts);
+
+      const mappedMsgs = messageData.map((item: any) => ({
+        id: String(item.id),
+        sender_type: item.sender_type || item.sender || 'admin',
+        message: item.message || item.text || '',
+        created_at: formatTime(item.created_at || new Date().toISOString())
+      }));
+
+      setMessages(mappedMsgs.reverse());
+
     } catch (error) {
-      console.error(error);
+      console.error("Failed to fetch data:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -56,14 +120,24 @@ export default function AlertsScreen() {
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
-    const sub = DeviceEventEmitter.addListener('refreshAlerts', fetchNotifications);
-    return () => sub.remove();
-  }, [fetchNotifications]);
+    loadReadAlerts();
+    fetchData();
+
+    // 10-minute auto-refresh polling
+    const interval = setInterval(() => {
+      fetchData();
+    }, 10 * 60 * 1000);
+
+    const sub = DeviceEventEmitter.addListener('refreshAlerts', fetchData);
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
+  }, [fetchData]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchNotifications();
+    fetchData();
   };
 
   const handleSendReply = async () => {
@@ -77,10 +151,12 @@ export default function AlertsScreen() {
       }
 
       const res = await sendStudentMessage(dbId, replyText.trim());
-      if (res?.success) {
+      if (res?.success !== false) {
         setReplyText('');
-        fetchNotifications();
+        fetchData();
         Keyboard.dismiss();
+      } else {
+        alert('Failed to send message');
       }
     } catch (error) {
       console.error(error);
@@ -89,22 +165,10 @@ export default function AlertsScreen() {
     }
   };
 
-  const switchTab = (tab: 'broadcast' | 'messages', index: number) => {
-    setActiveTab(tab);
-    scrollViewRef.current?.scrollTo({ x: index * width, animated: true });
-  };
-
-  const handleScroll = (event: any) => {
-    const offsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / width);
-    setActiveTab(index === 0 ? 'broadcast' : 'messages');
-  };
-
-  const formatTime = (ts: string) => {
-    if (!ts) return '';
-    const date = new Date(ts);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const filteredAlerts = alerts.filter(a => {
+    const isRead = readAlertIds.includes(a.id);
+    return activeSubTab === 'read' ? isRead : !isRead;
+  });
 
   if (loading && !refreshing) {
     return (
@@ -115,162 +179,387 @@ export default function AlertsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Alerts Center</Text>
-        <View style={styles.tabBar}>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'broadcast' && styles.activeTab]}
-            onPress={() => switchTab('broadcast', 0)}
+
+        {/* Main Tabs */}
+        <View style={styles.mainTabsBox}>
+          <TouchableOpacity
+            style={[styles.mainTabBtn, activeTab === 'broadcasts' && styles.mainTabBtnActive]}
+            onPress={() => setActiveTab('broadcasts')}
           >
-            <Text style={[styles.tabText, activeTab === 'broadcast' && styles.activeTabText]}>Broadcasts</Text>
+            <Text style={[styles.mainTabText, activeTab === 'broadcasts' && styles.mainTabTextActive]}>Broadcasts</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'messages' && styles.activeTab]}
-            onPress={() => switchTab('messages', 1)}
+          <TouchableOpacity
+            style={[styles.mainTabBtn, activeTab === 'messages' && styles.mainTabBtnActive]}
+            onPress={() => setActiveTab('messages')}
           >
-            <Text style={[styles.tabText, activeTab === 'messages' && styles.activeTabText]}>Messages</Text>
+            <Text style={[styles.mainTabText, activeTab === 'messages' && styles.mainTabTextActive]}>Messages</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        ref={scrollViewRef}
-        onMomentumScrollEnd={handleScroll}
-        scrollEventThrottle={16}
-      >
-        <View style={{ width }}>
+      {activeTab === 'broadcasts' ? (
+        <View style={styles.tabContent}>
+          {/* Sub Tabs */}
+          <View style={styles.subTabsBox}>
+            <TouchableOpacity
+              style={[styles.subTabBtn, activeSubTab === 'unread' && styles.subTabBtnActive]}
+              onPress={() => setActiveSubTab('unread')}
+            >
+              <Text style={[styles.subTabText, activeSubTab === 'unread' && styles.subTabTextActive]}>Unread</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.subTabBtn, activeSubTab === 'read' && styles.subTabBtnActive]}
+              onPress={() => setActiveSubTab('read')}
+            >
+              <Text style={[styles.subTabText, activeSubTab === 'read' && styles.subTabTextActive]}>Read</Text>
+            </TouchableOpacity>
+          </View>
+
           <FlatList
-            data={broadcasts}
-            keyExtractor={(item) => String(item.id)}
-            contentContainerStyle={styles.listPadding}
+            data={filteredAlerts}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#F97316']} />}
-            ListEmptyComponent={<Text style={styles.emptyText}>No broadcasts found.</Text>}
-            renderItem={({ item }) => (
-              <TouchableOpacity 
-                style={styles.card} 
-                onPress={() => { setSelectedAlert(item); setShowDetail(true); }}
-              >
-                <View style={[styles.iconBox, { backgroundColor: ALERT_CONFIG.broadcast.bg }]}>
-                  <MaterialCommunityIcons name="bullhorn-variant" size={24} color={ALERT_CONFIG.broadcast.color} />
-                </View>
-                <View style={styles.cardContent}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>Announcement</Text>
-                    <Text style={styles.cardTime}>{formatTime(item.created_at)}</Text>
+            ListEmptyComponent={<Text style={styles.emptyText}>No {activeSubTab} alerts at this time.</Text>}
+            renderItem={({ item }) => {
+              const cfg = ALERT_CONFIG[item.type] ?? ALERT_CONFIG.info;
+              const isUnread = !readAlertIds.includes(item.id);
+
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setSelectedAlert(item)}
+                  style={[styles.alertCard, isUnread && styles.alertCardUnread]}
+                >
+                  <View style={[styles.iconWrap, { backgroundColor: cfg.bg }]}>
+                    <MaterialCommunityIcons name={cfg.icon as any} size={22} color={cfg.color} />
                   </View>
-                  <Text style={styles.cardBody} numberOfLines={2}>{item.message}</Text>
-                </View>
-              </TouchableOpacity>
-            )}
+                  <View style={styles.alertContent}>
+                    <View style={styles.alertHeader}>
+                      <Text style={[styles.alertTitle, { color: cfg.color }]}>{item.title}</Text>
+                      <Text style={styles.alertTime}>{item.time}</Text>
+                    </View>
+                    <Text style={styles.alertBody}>{item.body}</Text>
+                  </View>
+                  {isUnread && <View style={styles.unreadIndicator} />}
+                </TouchableOpacity>
+              );
+            }}
           />
         </View>
-
-        <View style={{ width }}>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-            keyboardVerticalOffset={100}
-            style={{ flex: 1 }}
-          >
-            <FlatList
-              data={messages}
-              keyExtractor={(item) => String(item.id)}
-              contentContainerStyle={styles.msgListPadding}
-              inverted={false}
-              renderItem={({ item }) => {
-                const isAdmin = item.sender_type === 'admin';
-                return (
-                  <View style={[styles.bubbleWrap, isAdmin ? styles.bubbleLeft : styles.bubbleRight]}>
-                    <View style={[styles.bubble, isAdmin ? styles.adminBubble : styles.studentBubble]}>
-                      <Text style={[styles.bubbleText, isAdmin ? styles.adminText : styles.studentText]}>{item.message}</Text>
-                    </View>
-                    <Text style={styles.bubbleTime}>{formatTime(item.created_at)}</Text>
+      ) : (
+        <View style={styles.chatWrapper}>
+          <FlatList
+            data={messages}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.chatList}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1E2F97']} />}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>
+                No messages yet. Send a query below.
+              </Text>
+            }
+            renderItem={({ item }) => {
+              const isStudent = item.sender_type === 'student';
+              return (
+                <View style={[styles.bubbleWrap, isStudent ? styles.bubbleRight : styles.bubbleLeft]}>
+                  <View style={[styles.bubble, isStudent ? styles.studentBubble : styles.adminBubble]}>
+                    <Text style={[styles.bubbleText, isStudent ? styles.studentText : styles.adminText]}>
+                      {item.message}
+                    </Text>
                   </View>
-                );
-              }}
-              ListEmptyComponent={<Text style={styles.emptyText}>No messages yet. Send a query to Admin below.</Text>}
+                  <Text style={[styles.bubbleTime, isStudent ? { textAlign: 'right', marginTop: 4 } : { textAlign: 'left', marginTop: 4 }]}>
+                    {item.created_at}
+                  </Text>
+                </View>
+              );
+            }}
+          />
+          <View style={styles.inputArea}>
+            <TextInput
+              style={styles.chatInput}
+              placeholder="Type a message..."
+              placeholderTextColor="#9CA3AF"
+              value={replyText}
+              onChangeText={setReplyText}
+              multiline
             />
-            <View style={styles.inputBar}>
-              <TextInput
-                style={styles.input}
-                placeholder="Type a message..."
-                value={replyText}
-                onChangeText={setReplyText}
-                multiline
-              />
-              <TouchableOpacity 
-                style={[styles.sendBtn, !replyText.trim() && { opacity: 0.5 }]} 
-                onPress={handleSendReply}
-                disabled={sending || !replyText.trim()}
-              >
-                {sending ? <ActivityIndicator size="small" color="#fff" /> : <MaterialCommunityIcons name="send" size={20} color="#fff" />}
-              </TouchableOpacity>
-            </View>
-          </KeyboardAvoidingView>
+            <TouchableOpacity
+              style={[styles.sendBtn, !replyText.trim() && { opacity: 0.5 }]}
+              onPress={handleSendReply}
+              disabled={sending || !replyText.trim()}
+            >
+              {sending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <MaterialCommunityIcons name="send" size={20} color="#fff" />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-      </ScrollView>
+      )}
 
-      <Modal visible={showDetail} animationType="slide" transparent>
+      {/* Broadcast Modal */}
+      <Modal
+        visible={!!selectedAlert}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSelectedAlert(null)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Broadcast Details</Text>
-              <TouchableOpacity onPress={() => setShowDetail(false)}>
-                <MaterialCommunityIcons name="close" size={24} color="#1E2F97" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalScroll}>
-              <Text style={styles.modalBody}>{selectedAlert?.message}</Text>
-              <Text style={styles.modalTime}>{new Date(selectedAlert?.created_at).toLocaleString()}</Text>
-            </ScrollView>
+          <View style={styles.modalContainer}>
+            {selectedAlert && (() => {
+              const cfg = ALERT_CONFIG[selectedAlert.type] ?? ALERT_CONFIG.info;
+              const isUnread = !readAlertIds.includes(selectedAlert.id);
+              return (
+                <>
+                  <View style={[styles.modalIconWrap, { backgroundColor: cfg.bg }]}>
+                    <MaterialCommunityIcons name={cfg.icon as any} size={32} color={cfg.color} />
+                  </View>
+                  <Text style={[styles.modalTitle, { color: cfg.color }]}>{selectedAlert.title}</Text>
+                  <Text style={styles.modalTime}>{selectedAlert.time}</Text>
+                  <View style={styles.modalBodyContainer}>
+                    <Text style={styles.modalBody}>{selectedAlert.body}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.modalBtn, { backgroundColor: cfg.color }]}
+                    onPress={() => {
+                      if (isUnread) markAlertAsRead(selectedAlert.id);
+                      setSelectedAlert(null);
+                    }}
+                  >
+                    <Text style={styles.modalBtnText}>{isUnread ? 'Acknowledge' : 'Close'}</Text>
+                  </TouchableOpacity>
+                </>
+              );
+            })()}
           </View>
         </View>
       </Modal>
-    </View>
+
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F7FF' },
   centered: { justifyContent: 'center', alignItems: 'center' },
-  header: { backgroundColor: '#1E2F97', paddingTop: 60, paddingBottom: 15, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: 15 },
-  tabBar: { flexDirection: 'row', paddingHorizontal: 20, gap: 10 },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.1)' },
-  activeTab: { backgroundColor: '#F97316' },
-  tabText: { color: 'rgba(255,255,255,0.6)', fontWeight: '700' },
-  activeTabText: { color: '#fff' },
-  listPadding: { padding: 20 },
-  msgListPadding: { padding: 20, paddingBottom: 100 },
-  card: { backgroundColor: '#fff', borderRadius: 20, padding: 15, marginBottom: 15, flexDirection: 'row', alignItems: 'center', elevation: 2 },
-  iconBox: { width: 50, height: 50, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
-  cardContent: { flex: 1 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-  cardTitle: { fontWeight: '700', color: '#1E2F97', fontSize: 13 },
-  cardTime: { fontSize: 11, color: '#9CA3AF' },
-  cardBody: { fontSize: 14, color: '#4B5563', lineHeight: 20 },
-  emptyText: { textAlign: 'center', marginTop: 100, color: '#9CA3AF', fontWeight: '600' },
+  header: {
+    backgroundColor: '#1E2F97',
+    paddingTop: 55,
+    paddingBottom: 20,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 15 },
+  mainTabsBox: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+    padding: 4,
+    width: '100%',
+  },
+  mainTabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 16,
+  },
+  mainTabBtnActive: {
+    backgroundColor: '#F97316',
+  },
+  mainTabText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  mainTabTextActive: {
+    color: '#fff',
+  },
+  tabContent: { flex: 1 },
+  subTabsBox: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 5,
+    justifyContent: 'center',
+    gap: 20,
+  },
+  subTabBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  subTabBtnActive: {
+    borderBottomColor: '#1E2F97',
+  },
+  subTabText: {
+    color: '#9CA3AF',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  subTabTextActive: {
+    color: '#1E2F97',
+  },
+  list: { padding: 20, paddingBottom: 40 },
+  alertCard: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 16,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+  },
+  alertCardUnread: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#F97316',
+  },
+  unreadIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#F97316',
+    position: 'absolute',
+    top: 20,
+    right: 15,
+  },
+  iconWrap: { padding: 10, borderRadius: 14, marginRight: 14, marginTop: 2 },
+  alertContent: { flex: 1 },
+  alertHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  alertTitle: { fontWeight: '700', fontSize: 15 },
+  alertTime: { fontSize: 12, color: '#9CA3AF' },
+  alertBody: { fontSize: 14, color: '#4B5563', lineHeight: 21 },
+  emptyText: { textAlign: 'center', color: '#9CA3AF', fontSize: 16, marginTop: 60 },
+
+  // Chat Styles
+  chatWrapper: { flex: 1 },
+  chatList: {
+    padding: 20,
+    paddingBottom: 10,
+  },
   bubbleWrap: { marginBottom: 15, maxWidth: '85%' },
   bubbleLeft: { alignSelf: 'flex-start' },
   bubbleRight: { alignSelf: 'flex-end' },
-  bubble: { padding: 12, borderRadius: 20, minWidth: 60 },
+  bubble: { padding: 14, borderRadius: 20, minWidth: 60 },
   adminBubble: { backgroundColor: '#fff', borderBottomLeftRadius: 5 },
   studentBubble: { backgroundColor: '#F97316', borderBottomRightRadius: 5 },
-  bubbleText: { fontSize: 14, lineHeight: 20 },
-  adminText: { color: '#1E2F97' },
+  bubbleText: { fontSize: 15, lineHeight: 22 },
+  adminText: { color: '#1f2937' },
   studentText: { color: '#fff' },
-  bubbleTime: { fontSize: 10, color: '#9CA3AF', marginTop: 4, textAlign: 'right' },
-  inputBar: { position: 'absolute', bottom: 20, left: 20, right: 20, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 25, paddingHorizontal: 15, paddingVertical: 5, elevation: 5 },
-  input: { flex: 1, maxHeight: 100, paddingVertical: 10, color: '#1E2F97', fontSize: 15 },
-  sendBtn: { backgroundColor: '#1E2F97', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 30, padding: 25, maxHeight: '80%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#1E2F97' },
-  modalScroll: { marginBottom: 10 },
-  modalBody: { fontSize: 16, color: '#4B5563', lineHeight: 24 },
-  modalTime: { fontSize: 12, color: '#9CA3AF', marginTop: 15, textAlign: 'right' },
+  bubbleTime: { fontSize: 11, color: '#9CA3AF' },
+
+  inputArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    elevation: 10, // increased elevation to ensure it sits on top beautifully
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+  },
+  chatInput: {
+    flex: 1,
+    maxHeight: 120,
+    minHeight: 45,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
+    color: '#1f2937',
+    fontSize: 15,
+  },
+  sendBtn: {
+    backgroundColor: '#1E2F97', // Changed from #F97316 to #1E2F97 to match the image precisely
+    width: 45,
+    height: 45,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  modalIconWrap: {
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalTime: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    marginBottom: 20,
+  },
+  modalBodyContainer: {
+    backgroundColor: '#F3F4F6',
+    width: '100%',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 24,
+  },
+  modalBody: {
+    fontSize: 15,
+    color: '#4B5563',
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  modalBtn: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  modalBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });
