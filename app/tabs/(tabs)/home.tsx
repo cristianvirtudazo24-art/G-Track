@@ -13,42 +13,37 @@ export default function HomeScreen() {
   const { cameraRef, startEmergencyCapture, isRecording } = useEmergencyRecord();
 
   const [menuVisible, setMenuVisible] = useState(false);
-  const [blackoutModalVisible, setBlackoutModalVisible] = useState(false);
   const [successVisible, setSuccessVisible] = useState(false);
-  const [activeType, setActiveType] = useState<'emergency' | 'safe' | 'help' | null>(null);
+  const [activeType, setActiveType] = useState<'help' | 'safe' | 'blackout' | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<'safe' | 'help' | 'blackout'>('safe');
+  const [videoSent, setVideoSent] = useState(false);
 
   if (loading) return null;
 
-  const handleBlackoutSubmit = async (message: string) => {
-    setBlackoutModalVisible(false);
-
-    const batteryLevel = await Battery.getBatteryLevelAsync();
-    const batteryPercent = Math.round(batteryLevel * 100);
-
-    await sendBlackoutAlert({
-      studentId: session.dbId ?? 'unknown',
-      battery: batteryPercent,
-      message,
-    });
-
-    setActiveType('safe');
-    setSuccessVisible(true);
-  };
-
-  const handleSOSAction = async (type: 'emergency' | 'safe' | 'help') => {
+  const handleSOSAction = async (type: 'help' | 'safe' | 'blackout') => {
     setMenuVisible(false);
     setActiveType(type);
+    setCurrentStatus(type === 'safe' ? 'safe' : type);
+    setVideoSent(false); // reset on every new action
 
     const studentId = session.dbId ?? 'unknown';
 
-    await sendSOS({ type, location, studentId });
+    if (type === 'blackout') {
+      const batteryLevel = await Battery.getBatteryLevelAsync();
+      const batteryPercent = Math.round(batteryLevel * 100);
+      await sendBlackoutAlert({ studentId, battery: batteryPercent, message: '' });
+    } else {
+      await sendSOS({ type, location, studentId });
 
-    if (type === 'emergency') {
-      const videoUri = await startEmergencyCapture();
-      if (videoUri) {
-        await uploadEmergencyVideo(videoUri, String(studentId));
+      if (type === 'help') {
+        const videoUri = await startEmergencyCapture();
+        if (videoUri) {
+          await uploadEmergencyVideo(videoUri, String(studentId));
+          setVideoSent(true); // flip to true AFTER upload completes
+        }
       }
     }
+
     setSuccessVisible(true);
   };
 
@@ -60,11 +55,12 @@ export default function HomeScreen() {
         modalVisible={menuVisible}
         setModalVisible={setMenuVisible}
         onSOSAction={handleSOSAction}
-        blackoutModalVisible={blackoutModalVisible}
-        setBlackoutModalVisible={setBlackoutModalVisible}
-        onBlackoutSubmit={handleBlackoutSubmit}
+        onSafeAction={() => handleSOSAction('safe')}
         cameraRef={cameraRef}
         isRecording={isRecording}
+        studentName={session?.name ?? 'Student'}
+        currentStatus={currentStatus}
+        videoSent={videoSent}
       />
       <StatusSuccessModal
         isVisible={successVisible}

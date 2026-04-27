@@ -5,7 +5,7 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 interface Props {
   isVisible: boolean;
   onClose: () => void;
-  onSelectAction: (type: 'emergency' | 'safe' | 'help') => void;
+  onSelectAction: (type: 'help' | 'blackout') => void;
 }
 
 export const SOSModal = ({ isVisible, onClose, onSelectAction }: Props) => {
@@ -14,58 +14,45 @@ export const SOSModal = ({ isVisible, onClose, onSelectAction }: Props) => {
       <View style={styles.overlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.title}>SOS & Safety</Text>
+            <Text style={styles.title}>SOS Alert</Text>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
               <MaterialCommunityIcons name="close" size={22} color="#6B7280" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.subtitle}>Choose an option to alert administrators</Text>
+          <Text style={styles.subtitle}>Select an emergency action to alert administrators</Text>
 
           <View style={styles.iconCircle}>
             <MaterialCommunityIcons name="alert-octagon" size={36} color="#E8313A" />
           </View>
 
+          {/* Merged: Emergency SOS + I need Help → "I need Help" */}
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: '#E8313A' }]}
-            onPress={() => onSelectAction('emergency')}
+            onPress={() => onSelectAction('help')}
             activeOpacity={0.85}
           >
             <View style={styles.btnIconWrap}>
               <MaterialCommunityIcons name="alert" size={22} color="white" />
             </View>
             <View style={styles.btnTextWrap}>
-              <Text style={styles.btnLabel}>Emergency SOS</Text>
+              <Text style={styles.btnLabel}>I need Help</Text>
               <Text style={styles.btnSub}>Triggers video + alert</Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={20} color="rgba(255,255,255,0.7)" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: '#059669' }]}
-            onPress={() => onSelectAction('safe')}
-            activeOpacity={0.85}
-          >
-            <View style={styles.btnIconWrap}>
-              <MaterialCommunityIcons name="shield-check" size={22} color="white" />
-            </View>
-            <View style={styles.btnTextWrap}>
-              <Text style={styles.btnLabel}>I am Safe</Text>
-              <Text style={styles.btnSub}>Send safety check-in</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={20} color="rgba(255,255,255,0.7)" />
-          </TouchableOpacity>
-
+          {/* Blackout Alert */}
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: '#F97316' }]}
-            onPress={() => onSelectAction('help')}
+            onPress={() => onSelectAction('blackout')}
             activeOpacity={0.85}
           >
             <View style={styles.btnIconWrap}>
-              <MaterialCommunityIcons name="hand-wave" size={22} color="white" />
+              <MaterialCommunityIcons name="lightning-bolt" size={22} color="white" />
             </View>
             <View style={styles.btnTextWrap}>
-              <Text style={styles.btnLabel}>I need Help</Text>
-              <Text style={styles.btnSub}>Non-emergency assistance</Text>
+              <Text style={styles.btnLabel}>Blackout Alert</Text>
+              <Text style={styles.btnSub}>Notify admin of power loss</Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={20} color="rgba(255,255,255,0.7)" />
           </TouchableOpacity>

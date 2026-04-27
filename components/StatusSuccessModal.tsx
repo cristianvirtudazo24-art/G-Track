@@ -4,14 +4,14 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface Props {
   isVisible: boolean;
-  type: 'emergency' | 'safe' | 'help' | null;
+  type: 'help' | 'safe' | 'blackout' | null;
   onClose: () => void;
 }
 
 const INFO: Record<string, { icon: string; color: string; bg: string; label: string; sub: string }> = {
-  emergency: { icon: 'alert-octagon', color: '#E8313A', bg: '#FEE2E2', label: 'Emergency Sent!', sub: 'Admin has been alerted. Help is on the way.' },
-  safe:       { icon: 'shield-check', color: '#059669', bg: '#D1FAE5', label: 'Status Updated!', sub: 'You marked yourself as safe.' },
-  help:       { icon: 'hand-wave',    color: '#F97316', bg: '#FFF7ED', label: 'Help Requested!', sub: 'Admin has been notified you need assistance.' },
+  help:     { icon: 'alert-octagon', color: '#E8313A', bg: '#FEE2E2', label: 'Alert Sent!',        sub: 'Admin has been alerted. Help is on the way.' },
+  safe:     { icon: 'shield-check', color: '#059669', bg: '#D1FAE5', label: 'Status Updated!',    sub: 'You marked yourself as safe.' },
+  blackout: { icon: 'lightning-bolt', color: '#F97316', bg: '#FFF7ED', label: 'Blackout Reported!', sub: 'Admin has been notified of power loss.' },
 };
 
 export const StatusSuccessModal = ({ isVisible, type, onClose }: Props) => {
