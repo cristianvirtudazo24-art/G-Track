@@ -26,7 +26,7 @@ export const LocationCard = ({ location, errorMsg }: Props) => {
       </View>
 
       {errorMsg ? (
-        <Text style={{ color: Colors.danger, fontSize: Typography.fontSize.sm }}>{errorMsg}</Text>
+        <Text style={{ color: Colors.button.danger, fontSize: Typography.fontSize.sm }}>{errorMsg}</Text>
       ) : location ? (
         <View style={styles.coordRow}>
           <View style={styles.coordBox}>

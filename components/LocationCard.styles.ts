@@ -1,7 +1,17 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '../constants/theme';
 
-export const styles = StyleSheet.create({
+export const styles = StyleSheet.create<{
+  card: ViewStyle;
+  headerRow: ViewStyle;
+  iconContainer: ViewStyle;
+  title: TextStyle;
+  subtitle: TextStyle;
+  coordRow: ViewStyle;
+  coordBox: ViewStyle;
+  coordLabel: TextStyle;
+  coordValue: TextStyle;
+}>({
   card: {
     backgroundColor: Colors.background.primary,
     borderRadius: BorderRadius.xl,
@@ -34,7 +44,6 @@ export const styles = StyleSheet.create({
   coordRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: Spacing.md,
   },
   coordBox: {
     flex: 1,

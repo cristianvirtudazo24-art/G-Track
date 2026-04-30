@@ -22,6 +22,7 @@ const slate900 = '#0F172A';
 export const Colors = {
   // Brand Colors
   primary: primaryBlue,
+  primaryLight: '#EBF1FF',
   secondary: primaryOrange,
   accent: accentRed,
   success: successGreen,
@@ -201,7 +202,7 @@ export const Typography = {
     normal: 1.5,
     relaxed: 1.75,
   },
-};
+} as const;
 
 export const Fonts = Platform.select({
   ios: {
