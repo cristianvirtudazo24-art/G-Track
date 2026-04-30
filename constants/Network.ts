@@ -4,7 +4,7 @@
  */
 
 // REPLACE with the Admin Team's laptop IP address (e.g., '192.168.1.XX')
-export const ADMIN_LAPTOP_IP = '192.168.110.53';
+export const ADMIN_LAPTOP_IP = '192.168.110.54';
 
 // THE PORT Laravel uses (usually 8000)
 export const LARAVEL_PORT = '8007';

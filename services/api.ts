@@ -16,7 +16,7 @@ export const getStudents = async () => {
     return response.data;
   } catch (error) {
     console.error("❌ API Error: Fetch Students Failed", error);
-    return [];
+    return []; 
   }
 };
 
@@ -24,7 +24,7 @@ export const getAlerts = async () => {
   try {
     const response = await apiClient.get('/location/all');
     const locations = response.data || [];
-
+    
     return locations
       .filter((loc: any) => loc.sos_status === 'help')
       .map((loc: any) => ({
@@ -59,21 +59,15 @@ export const syncStudentData = async (payload: {
   timestamp?: string;
 }) => {
   try {
-    const requestBody = {
+    const response = await apiClient.post('/location/update', {
       student_id: Number(payload.studentId),
       latitude: payload.latitude,
       longitude: payload.longitude,
-      sos_status: (payload.status === 'Safe' || payload.status === 'Active') ? 'safe' : 'help',
-    };
-    console.log("📡 Outgoing Location Sync:", requestBody);
-    const response = await apiClient.post('/location/update', requestBody);
+      sos_status: payload.status === 'Safe' ? 'safe' : 'help',
+    });
     return response.data;
-  } catch (error: any) {
-    if (error.response?.data) {
-      console.error("❌ API Error: Location Sync Failed (Validation):", error.response.data);
-    } else {
-      console.error("❌ API Error: Location Sync Failed", error);
-    }
+  } catch (error) {
+    console.error("❌ API Error: Location Sync Failed", error);
     return false;
   }
 };
@@ -81,11 +75,11 @@ export const syncStudentData = async (payload: {
 export const sendSOS = async (payload: {
   type: 'emergency' | 'safe' | 'help';
   location: any;
-  studentId: string | number;
+  studentId: string;
 }) => {
   try {
     const response = await apiClient.post('/location/sos', {
-      student_id: Number(payload.studentId),
+      student_id: payload.studentId,
       sos_status: payload.type === 'safe' ? 'safe' : 'help'
     });
     return response.data;
@@ -95,32 +89,78 @@ export const sendSOS = async (payload: {
   }
 };
 
-export const uploadEmergencyVideo = async (videoUri: string, studentId: string) => {
+export const uploadEmergencyVideo = async (payload: {
+  videoUri: string;
+  studentId: string;
+  message?: string;
+  latitude?: string | number;
+  longitude?: string | number;
+  battery_level?: string | number;
+  signal?: string;
+}) => {
+  const { videoUri, studentId, message, latitude, longitude, battery_level, signal } = payload;
+
+  if (!videoUri) {
+    console.error('❌ API Error: Video Upload Failed - missing video URI');
+    return null;
+  }
+
   try {
     const formData = new FormData();
     // @ts-ignore
     formData.append('video', { uri: videoUri, type: 'video/mp4', name: 'sos.mp4' });
     formData.append('student_id', studentId);
-    const response = await apiClient.post('/upload-video', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+    formData.append('target', 'sos');
+    formData.append('message', message || 'Live Emergency Feed');
+    if (latitude !== undefined && latitude !== null) formData.append('latitude', String(latitude));
+    if (longitude !== undefined && longitude !== null) formData.append('longitude', String(longitude));
+    if (battery_level !== undefined && battery_level !== null) formData.append('battery_level', String(battery_level));
+    if (signal) formData.append('signal', signal);
+
+    const uploadUrl = `${API_BASE_URL}/upload-video`;
+    console.log('Uploading video to', uploadUrl, { videoUri, studentId, message, latitude, longitude, battery_level, signal });
+
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData,
+      // Add timeout for large file uploads
+      signal: AbortSignal.timeout(30000), // 30 second timeout
     });
-    return response.data;
-  } catch (error) {
-    console.error("❌ API Error: Video Upload Failed", error);
+
+    const responseText = await response.text();
+    let responseData: any;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch {
+      responseData = responseText;
+    }
+
+    if (!response.ok) {
+      console.error('❌ API Error: Video Upload Failed', {
+        status: response.status,
+        body: responseData,
+      });
+      return null;
+    }
+
+    return responseData;
+  } catch (error: any) {
+    console.error('❌ API Error: Video Upload Failed', error.message || error);
     return null;
   }
 };
 
 export const sendBlackoutAlert = async (payload: {
-  studentId: string | number;
+  studentId: string;
   battery: number;
   message?: string;
 }) => {
   try {
     const response = await apiClient.post('/notifications/send', {
-      student_id: Number(payload.studentId),
+      student_id: payload.studentId,
       target: 'blackout',
-      message: payload.message || 'Blackout Alert'
+      message: payload.message || 'Blackout Alert',
+      battery_level: payload.battery
     });
     return response.data;
   } catch (error) {
@@ -145,6 +185,20 @@ export const sendAnnouncement = async (payload: {
   }
 };
 
+export const sendStudentMessage = async (studentId: string | number, message: string) => {
+  try {
+    const response = await apiClient.post('/notifications/send', {
+      student_id: studentId,
+      target: 'student_message',
+      message,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("❌ API Error: Sending Student Message Failed", error);
+    return null;
+  }
+};
+
 export const updatePushToken = async (studentId: string | number, token: string) => {
   try {
     const response = await apiClient.post('/update-push-token', {
@@ -164,26 +218,6 @@ export const getStudentNotifications = async (studentId: string | number) => {
     return response.data;
   } catch (error) {
     console.error("❌ API Error: Fetch Student Notifications Failed", error);
-    return { notifications: [] };
-  }
-};
-
-export const sendStudentMessage = async (studentId: string | number, message: string) => {
-  try {
-    const requestBody = {
-      student_id: Number(studentId),
-      target: 'student_message',
-      message: message
-    };
-    console.log("📡 Outgoing Student Message:", requestBody);
-    const response = await apiClient.post('/notifications/send', requestBody);
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.data) {
-      console.error("❌ API Error: Send Message Failed (Validation):", error.response.data);
-    } else {
-      console.error("❌ API Error: Send Message Failed", error);
-    }
-    return null;
+    return [];
   }
 };

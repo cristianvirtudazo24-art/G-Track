@@ -39,7 +39,8 @@ export default function LoginScreen() {
           const dbId = String(response.user.id);
           await AsyncStorage.setItem('userDbId', dbId);
           await AsyncStorage.setItem('studentId', studentId);
-          await AsyncStorage.setItem('studentEmail', response.user.email || "");
+          await AsyncStorage.setItem('studentProfile', JSON.stringify(response.user));
+          if (response.user.email) await AsyncStorage.setItem('studentEmail', response.user.email);
           if (response.user.name) await AsyncStorage.setItem('studentName', response.user.name);
           if (response.user.gender) await AsyncStorage.setItem('studentGender', response.user.gender);
 

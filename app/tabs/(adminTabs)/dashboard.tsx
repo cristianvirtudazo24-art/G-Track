@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, SafeAreaView, ScrollView, Modal, TouchableOpacity, ActivityIndicator, RefreshControl, TextInput } from 'react-native';
-import MapView, { Marker, Callout } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { getStudents, getRecentLocations, getAlerts, sendAnnouncement } from '../../../services/api';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import MapView, { Callout, Marker } from 'react-native-maps';
+import { getAlerts, getRecentLocations, getStudents, sendAnnouncement } from '../../../services/api';
 
 export default function AdminDashboard() {
   const [mapExpanded, setMapExpanded] = useState(false);
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
   expandBtn: { backgroundColor: '#EEF2FF', padding: 8, borderRadius: 10 },
   mapContainer: { height: 210, width: '100%', borderRadius: 12, overflow: 'hidden' },
   map: { width: '100%', height: '100%' },
-  markerContainer: { padding: 4, borderRadius: 18, borderWith: 1.5, borderColor: '#fff', elevation: 3 },
+  markerContainer: { padding: 4, borderRadius: 18, borderWidth: 1.5, borderColor: '#fff', elevation: 3 },
   markerMale: { backgroundColor: '#1E2F97' },
   markerFemale: { backgroundColor: '#F97316' },
   callout: { padding: 5, minWidth: 120 },

@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useLocation } from '../../../hooks/useLocation';
@@ -9,6 +9,34 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { session, loading, clearSession } = useUser();
   const { isSharing, stopContinuousSharing } = useLocation();
+  const profileData = session.profile || {
+    student_id: session.studentId,
+    email: session.email,
+    name: session.name,
+    gender: session.gender,
+  };
+  const profileEntries = Object.entries(profileData || {})
+    .filter(([, value]) => value !== null && value !== undefined && value !== '')
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  const friendlyLabel = (key: string) => {
+    const labels: Record<string, string> = {
+      id: 'DB ID',
+      student_id: 'Student ID',
+      name: 'Full Name',
+      email: 'Email',
+      gender: 'Gender',
+      class: 'Class',
+      year: 'Year',
+      section: 'Section',
+      department: 'Department',
+      phone: 'Phone',
+      address: 'Address',
+      enrolled: 'Enrolled',
+      status: 'Status',
+    };
+    return labels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  };
 
   const handleLogout = () => {
     const performLogout = async () => {
@@ -43,7 +71,7 @@ export default function ProfileScreen() {
         <Text style={styles.name}>{session.name || 'G!Track User'}</Text>
         <View style={styles.idBadge}>
           <MaterialCommunityIcons name="identifier" size={14} color="#1E2F97" />
-          <Text style={styles.idText}>{session.studentId || session.role?.toUpperCase()}</Text>
+          <Text style={styles.idText}>{profileData.student_id || session.studentId || session.role?.toUpperCase()}</Text>
         </View>
         <View style={[styles.statusChip, !isSharing && styles.statusChipInactive]}>
           <View style={[styles.statusDot, !isSharing && styles.statusDotInactive]} />
@@ -75,6 +103,28 @@ export default function ProfileScreen() {
             <Text style={styles.infoLabel}>Gender</Text>
             <Text style={styles.infoValue}>{session.gender || 'Not specified'}</Text>
           </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Student Credentials</Text>
+          {profileEntries.length === 0 ? (
+            <Text style={[styles.infoValue, { marginTop: 6 }]}>No student data available.</Text>
+          ) : (
+            profileEntries.map(([key, value], index) => (
+              <React.Fragment key={key}>
+                <View style={styles.infoRow}>
+                  <View style={styles.infoIconWrap}>
+                    <MaterialCommunityIcons name="badge-account-outline" size={18} color="#1E2F97" />
+                  </View>
+                  <Text style={styles.infoLabel}>{friendlyLabel(key)}</Text>
+                  <Text style={styles.infoValue}>
+                    {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                  </Text>
+                </View>
+                {index < profileEntries.length - 1 && <View style={styles.divider} />}
+              </React.Fragment>
+            ))
+          )}
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.85}>

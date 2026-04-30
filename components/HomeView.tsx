@@ -1,5 +1,5 @@
-import { CameraView } from 'expo-camera';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { CameraView } from 'expo-camera';
 import React from 'react';
 import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LocationCard } from './LocationCard';
@@ -40,7 +40,9 @@ export const HomeView = (props: any) => {
             <Text style={styles.headerStatusLabel}>EMERGENCY</Text>
           </View>
           <Text style={styles.headerTitle}>{studentName} needed help</Text>
-          <Text style={styles.headerSub}>📹 Camera is recording</Text>
+          <Text style={styles.headerSub}>
+            {props.isUploading ? '📤 Uploading video...' : '📹 Camera is recording'}
+          </Text>
         </>
       );
     }

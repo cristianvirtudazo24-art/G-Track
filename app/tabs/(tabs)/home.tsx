@@ -17,6 +17,7 @@ export default function HomeScreen() {
   const [activeType, setActiveType] = useState<'help' | 'safe' | 'blackout' | null>(null);
   const [currentStatus, setCurrentStatus] = useState<'safe' | 'help' | 'blackout'>('safe');
   const [videoSent, setVideoSent] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   if (loading) return null;
 
@@ -25,6 +26,7 @@ export default function HomeScreen() {
     setActiveType(type);
     setCurrentStatus(type === 'safe' ? 'safe' : type);
     setVideoSent(false); // reset on every new action
+    setIsUploading(false);
 
     const studentId = session.dbId ?? 'unknown';
 
@@ -33,14 +35,45 @@ export default function HomeScreen() {
       const batteryPercent = Math.round(batteryLevel * 100);
       await sendBlackoutAlert({ studentId, battery: batteryPercent, message: '' });
     } else {
-      await sendSOS({ type, location, studentId });
-
+      // For 'help' type, upload video first, then send notification
       if (type === 'help') {
         const videoUri = await startEmergencyCapture();
         if (videoUri) {
-          await uploadEmergencyVideo(videoUri, String(studentId));
-          setVideoSent(true); // flip to true AFTER upload completes
+          const batteryLevel = await Battery.getBatteryLevelAsync();
+          const batteryPercent = Math.round(batteryLevel * 100);
+          const signalStrength = 'Good';
+
+          // Start uploading video
+          setIsUploading(true);
+          const uploadResult = await uploadEmergencyVideo({
+            videoUri,
+            studentId: String(studentId),
+            message: 'Live Emergency Feed',
+            latitude: location?.coords?.latitude,
+            longitude: location?.coords?.longitude,
+            battery_level: batteryPercent,
+            signal: signalStrength,
+          });
+
+          setIsUploading(false);
+
+          if (uploadResult) {
+            // Only send SOS notification after video upload succeeds
+            await sendSOS({ type, location, studentId });
+            setVideoSent(true);
+          } else {
+            console.error('Video upload failed, not sending SOS notification');
+            alert('Failed to upload emergency video. Please try again.');
+            return;
+          }
+        } else {
+          console.error('Video recording failed');
+          alert('Failed to record emergency video. Please try again.');
+          return;
         }
+      } else {
+        // For 'safe' type, just send the notification
+        await sendSOS({ type, location, studentId });
       }
     }
 
@@ -61,6 +94,7 @@ export default function HomeScreen() {
         studentName={session?.name ?? 'Student'}
         currentStatus={currentStatus}
         videoSent={videoSent}
+        isUploading={isUploading}
       />
       <StatusSuccessModal
         isVisible={successVisible}

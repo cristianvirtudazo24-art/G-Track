@@ -8,6 +8,7 @@ export interface UserSession {
   email: string | null;
   name: string | null;
   gender: string | null;
+  profile: Record<string, any> | null;
 }
 
 export const useUser = () => {
@@ -18,6 +19,7 @@ export const useUser = () => {
     email: null,
     name: null,
     gender: null,
+    profile: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -29,6 +31,8 @@ export const useUser = () => {
       const email = await AsyncStorage.getItem('studentEmail');
       const name = await AsyncStorage.getItem('studentName');
       const gender = await AsyncStorage.getItem('studentGender');
+      const rawProfile = await AsyncStorage.getItem('studentProfile');
+      const profile = rawProfile ? JSON.parse(rawProfile) : null;
 
       setSession({
         role,
@@ -37,6 +41,7 @@ export const useUser = () => {
         email,
         name,
         gender,
+        profile,
       });
     } catch (error) {
       console.error("Failed to load session:", error);
@@ -56,7 +61,8 @@ export const useUser = () => {
     await AsyncStorage.removeItem('studentEmail');
     await AsyncStorage.removeItem('studentName');
     await AsyncStorage.removeItem('studentGender');
-    setSession({ role: null, studentId: null, dbId: null, email: null, name: null, gender: null });
+    await AsyncStorage.removeItem('studentProfile');
+    setSession({ role: null, studentId: null, dbId: null, email: null, name: null, gender: null, profile: null });
   };
 
   return { session, loading, reloadSession: loadSession, clearSession };

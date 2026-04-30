@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, DeviceEventEmitter, FlatList, Keyboard, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal } from 'react-native';
+import { ActivityIndicator, DeviceEventEmitter, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { getStudentNotifications, sendStudentMessage } from '../../../services/api';
 
 interface AlertItem {
@@ -83,14 +83,23 @@ export default function AlertsScreen() {
         ? alertsRaw
         : (alertsRaw?.notifications || alertsRaw?.data || []);
 
-      const messageData = dataArray.filter((item: any) => 
-        item.type === 'admin_reply' || 
-        item.type === 'student_message' || 
-        item.type === 'two_way' || 
-        item.type === 'personal' || 
-        item.target === 'student_message'
+      const isMessageItem = (item: any) =>
+        item.type === 'admin_reply' ||
+        item.type === 'student_message' ||
+        item.type === 'two_way' ||
+        item.type === 'personal' ||
+        item.target === 'student_message' ||
+        item.sender_type === 'student' ||
+        item.sender === 'student';
+
+      const messageData = dataArray.filter(isMessageItem);
+      const broadcastData = dataArray.filter((item: any) =>
+        !messageData.includes(item) &&
+        item.sender_type !== 'student' &&
+        item.sender !== 'student' &&
+        item.target !== 'student_message' &&
+        item.target !== 'admin'
       );
-      const broadcastData = dataArray.filter((item: any) => !messageData.includes(item));
 
       const mappedAlerts = broadcastData.map((item: any) => ({
         id: String(item.id),
