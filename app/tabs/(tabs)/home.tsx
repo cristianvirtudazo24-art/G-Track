@@ -4,6 +4,7 @@ import { HomeView } from '../../../components/HomeView';
 import { StatusSuccessModal } from '../../../components/StatusSuccessModal';
 import { useEmergencyRecord } from '../../../hooks/useEmergencyRecord';
 import { useLocation } from '../../../hooks/useLocation';
+import { useNetworkInfo } from '../../../hooks/useNetworkInfo';
 import { useUser } from '../../../hooks/useUser';
 import { sendBlackoutAlert, sendSOS, uploadEmergencyVideo } from '../../../services/api';
 
@@ -11,6 +12,7 @@ export default function HomeScreen() {
   const { session, loading } = useUser();
   const { location, errorMsg } = useLocation();
   const { cameraRef, startEmergencyCapture, isRecording } = useEmergencyRecord();
+  const { networkInfo, getFormattedNetworkInfo } = useNetworkInfo();
 
   const [menuVisible, setMenuVisible] = useState(false);
   const [successVisible, setSuccessVisible] = useState(false);
@@ -33,7 +35,8 @@ export default function HomeScreen() {
     if (type === 'blackout') {
       const batteryLevel = await Battery.getBatteryLevelAsync();
       const batteryPercent = Math.round(batteryLevel * 100);
-      await sendBlackoutAlert({ studentId, battery: batteryPercent, message: '' });
+      const signalStrength = getFormattedNetworkInfo();
+      await sendBlackoutAlert({ studentId, battery: batteryPercent, signal: signalStrength, message: '' });
     } else {
       // For 'help' type, upload video first, then send notification
       if (type === 'help') {
@@ -41,7 +44,7 @@ export default function HomeScreen() {
         if (videoUri) {
           const batteryLevel = await Battery.getBatteryLevelAsync();
           const batteryPercent = Math.round(batteryLevel * 100);
-          const signalStrength = 'Good';
+          const signalStrength = getFormattedNetworkInfo();
 
           // Start uploading video
           setIsUploading(true);
@@ -59,7 +62,10 @@ export default function HomeScreen() {
 
           if (uploadResult) {
             // Only send SOS notification after video upload succeeds
-            await sendSOS({ type, location, studentId });
+            const batteryLevel = await Battery.getBatteryLevelAsync();
+            const batteryPercent = Math.round(batteryLevel * 100);
+            const signalStrength = getFormattedNetworkInfo();
+            await sendSOS({ type, location, studentId, battery: batteryPercent, signal: signalStrength });
             setVideoSent(true);
           } else {
             console.error('Video upload failed, not sending SOS notification');
@@ -73,7 +79,10 @@ export default function HomeScreen() {
         }
       } else {
         // For 'safe' type, just send the notification
-        await sendSOS({ type, location, studentId });
+        const batteryLevel = await Battery.getBatteryLevelAsync();
+        const batteryPercent = Math.round(batteryLevel * 100);
+        const signalStrength = getFormattedNetworkInfo();
+        await sendSOS({ type, location, studentId, battery: batteryPercent, signal: signalStrength });
       }
     }
 

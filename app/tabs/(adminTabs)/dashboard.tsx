@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import MapView, { Callout, Marker } from 'react-native-maps';
 import { getAlerts, getRecentLocations, getStudents, sendAnnouncement } from '../../../services/api';
 
@@ -122,13 +122,18 @@ export default function AdminDashboard() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView 
-        contentContainerStyle={styles.container} 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} colors={["#1E2F97"]} />
-        }
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 20}
       >
+        <ScrollView 
+          contentContainerStyle={styles.container} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} colors={["#1E2F97"]} />
+          }
+        >
         <View style={styles.header}>
           <View>
             <Text style={styles.headerGreeting}>G!Track System Monitor 👋</Text>
@@ -262,6 +267,7 @@ export default function AdminDashboard() {
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal visible={mapExpanded} animationType="slide">
         <View style={{ flex: 1 }}>
@@ -278,8 +284,7 @@ export default function AdminDashboard() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F7FF' },
-  container: { paddingBottom: 40 },
+  safeArea: { flex: 1, backgroundColor: '#F5F7FF' },  keyboardAvoid: { flex: 1 },  container: { paddingBottom: 40 },
   header: {
     backgroundColor: '#1E2F97',
     paddingTop: 15,

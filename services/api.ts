@@ -76,11 +76,15 @@ export const sendSOS = async (payload: {
   type: 'emergency' | 'safe' | 'help';
   location: any;
   studentId: string;
+  battery?: number;
+  signal?: string;
 }) => {
   try {
     const response = await apiClient.post('/location/sos', {
       student_id: payload.studentId,
-      sos_status: payload.type === 'safe' ? 'safe' : 'help'
+      sos_status: payload.type === 'safe' ? 'safe' : 'help',
+      battery_level: payload.battery,
+      signal: payload.signal
     });
     return response.data;
   } catch (error) {
@@ -153,6 +157,7 @@ export const uploadEmergencyVideo = async (payload: {
 export const sendBlackoutAlert = async (payload: {
   studentId: string;
   battery: number;
+  signal?: string;
   message?: string;
 }) => {
   try {
@@ -160,7 +165,8 @@ export const sendBlackoutAlert = async (payload: {
       student_id: payload.studentId,
       target: 'blackout',
       message: payload.message || 'Blackout Alert',
-      battery_level: payload.battery
+      battery_level: payload.battery,
+      signal: payload.signal
     });
     return response.data;
   } catch (error) {

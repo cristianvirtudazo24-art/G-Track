@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import React from 'react';
 import { Text, View } from 'react-native';
+import { Colors, Typography } from '../constants/theme';
 import { styles } from './LocationCard.styles';
 
 interface Props {
@@ -14,7 +15,7 @@ export const LocationCard = ({ location, errorMsg }: Props) => {
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.iconContainer}>
-          <MaterialCommunityIcons name="map-marker-radius" size={22} color="#1E2F97" />
+          <MaterialCommunityIcons name="map-marker-radius" size={22} color={Colors.primary} />
         </View>
         <View>
           <Text style={styles.title}>Current Location</Text>
@@ -25,7 +26,7 @@ export const LocationCard = ({ location, errorMsg }: Props) => {
       </View>
 
       {errorMsg ? (
-        <Text style={{ color: '#EF4444', fontSize: 14 }}>{errorMsg}</Text>
+        <Text style={{ color: Colors.danger, fontSize: Typography.fontSize.sm }}>{errorMsg}</Text>
       ) : location ? (
         <View style={styles.coordRow}>
           <View style={styles.coordBox}>
@@ -38,7 +39,7 @@ export const LocationCard = ({ location, errorMsg }: Props) => {
           </View>
         </View>
       ) : (
-        <Text style={{ color: '#9CA3AF', fontSize: 14 }}>Acquiring location...</Text>
+        <Text style={{ color: Colors.text.muted, fontSize: Typography.fontSize.sm }}>Acquiring location...</Text>
       )}
     </View>
   );

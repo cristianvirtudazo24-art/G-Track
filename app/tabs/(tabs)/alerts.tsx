@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, DeviceEventEmitter, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { BorderRadius, Colors, Shadows, Spacing, Typography } from '../../../constants/theme';
 import { getStudentNotifications, sendStudentMessage } from '../../../services/api';
 
 interface AlertItem {
@@ -20,9 +21,9 @@ interface MessageItem {
 }
 
 const ALERT_CONFIG: Record<string, { color: string; bg: string; icon: string; defaultTitle: string }> = {
-  info: { color: '#1E2F97', bg: '#EEF2FF', icon: 'information', defaultTitle: 'Announcement' },
-  warning: { color: '#F97316', bg: '#FFF7ED', icon: 'alert', defaultTitle: 'Security Warning' },
-  danger: { color: '#E8313A', bg: '#FEE2E2', icon: 'alert-octagon', defaultTitle: 'Urgent Alert' },
+  info: { color: Colors.primary, bg: Colors.primaryLight, icon: 'information', defaultTitle: 'Announcement' },
+  warning: { color: Colors.secondary, bg: Colors.secondaryLight, icon: 'alert', defaultTitle: 'Security Warning' },
+  danger: { color: Colors.danger, bg: Colors.dangerLight, icon: 'alert-octagon', defaultTitle: 'Urgent Alert' },
 };
 
 export default function AlertsScreen() {
@@ -182,7 +183,7 @@ export default function AlertsScreen() {
   if (loading && !refreshing) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#1E2F97" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -190,8 +191,8 @@ export default function AlertsScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
     >
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Alerts Center</Text>
@@ -236,7 +237,7 @@ export default function AlertsScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#F97316']} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.secondary]} />}
             ListEmptyComponent={<Text style={styles.emptyText}>No {activeSubTab} alerts at this time.</Text>}
             renderItem={({ item }) => {
               const cfg = ALERT_CONFIG[item.type] ?? ALERT_CONFIG.info;
@@ -271,7 +272,7 @@ export default function AlertsScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.chatList}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1E2F97']} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
             ListEmptyComponent={
               <Text style={styles.emptyText}>
                 No messages yet. Send a query below.
@@ -297,7 +298,7 @@ export default function AlertsScreen() {
             <TextInput
               style={styles.chatInput}
               placeholder="Type a message..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={Colors.text.muted}
               value={replyText}
               onChangeText={setReplyText}
               multiline
@@ -360,215 +361,251 @@ export default function AlertsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FF' },
+  container: { flex: 1, backgroundColor: Colors.background.secondary },
   centered: { justifyContent: 'center', alignItems: 'center' },
   header: {
-    backgroundColor: '#1E2F97',
-    paddingTop: 55,
-    paddingBottom: 20,
-    paddingHorizontal: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    backgroundColor: Colors.primary,
+    paddingTop: Spacing.xxxl + Spacing.sm,
+    paddingBottom: Spacing.xl,
+    paddingHorizontal: Spacing.xl,
+    borderBottomLeftRadius: BorderRadius.xxl,
+    borderBottomRightRadius: BorderRadius.xxl,
     alignItems: 'center',
     zIndex: 10,
   },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 15 },
+  headerTitle: {
+    fontSize: Typography.fontSize.xxl,
+    fontWeight: Typography.fontWeight.extrabold,
+    color: Colors.text.inverse,
+    marginBottom: Spacing.lg
+  },
   mainTabsBox: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
-    padding: 4,
+    backgroundColor: Colors.whiteAlpha[10],
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xs,
     width: '100%',
   },
   mainTabBtn: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: Spacing.md,
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: BorderRadius.lg,
   },
   mainTabBtnActive: {
-    backgroundColor: '#F97316',
+    backgroundColor: Colors.secondary,
   },
   mainTabText: {
-    color: 'rgba(255,255,255,0.6)',
-    fontWeight: '700',
-    fontSize: 14,
+    color: Colors.whiteAlpha[60],
+    fontWeight: Typography.fontWeight.bold,
+    fontSize: Typography.fontSize.sm,
   },
   mainTabTextActive: {
-    color: '#fff',
+    color: Colors.text.inverse,
   },
   tabContent: { flex: 1 },
   subTabsBox: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingTop: 15,
-    paddingBottom: 5,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.xs,
     justifyContent: 'center',
-    gap: 20,
+    gap: Spacing.xl,
   },
   subTabBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
   subTabBtnActive: {
-    borderBottomColor: '#1E2F97',
+    borderBottomColor: Colors.primary,
   },
   subTabText: {
-    color: '#9CA3AF',
-    fontWeight: '600',
-    fontSize: 15,
+    color: Colors.text.muted,
+    fontWeight: Typography.fontWeight.semibold,
+    fontSize: Typography.fontSize.md,
   },
   subTabTextActive: {
-    color: '#1E2F97',
+    color: Colors.primary,
   },
-  list: { padding: 20, paddingBottom: 40 },
+  list: { padding: Spacing.lg, paddingBottom: Spacing.xxxl },
   alertCard: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    marginBottom: 14,
+    backgroundColor: Colors.background.primary,
+    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.lg,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    padding: 16,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
+    padding: Spacing.lg,
+    ...Shadows.md,
   },
   alertCardUnread: {
     borderLeftWidth: 4,
-    borderLeftColor: '#F97316',
+    borderLeftColor: Colors.secondary,
   },
   unreadIndicator: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    backgroundColor: '#F97316',
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.secondary,
     position: 'absolute',
-    top: 20,
-    right: 15,
+    top: Spacing.lg,
+    right: Spacing.lg,
   },
-  iconWrap: { padding: 10, borderRadius: 14, marginRight: 14, marginTop: 2 },
+  iconWrap: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginRight: Spacing.lg,
+    marginTop: Spacing.xs
+  },
   alertContent: { flex: 1 },
-  alertHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
-  alertTitle: { fontWeight: '700', fontSize: 15 },
-  alertTime: { fontSize: 12, color: '#9CA3AF' },
-  alertBody: { fontSize: 14, color: '#4B5563', lineHeight: 21 },
-  emptyText: { textAlign: 'center', color: '#9CA3AF', fontSize: 16, marginTop: 60 },
+  alertHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs
+  },
+  alertTitle: {
+    fontWeight: Typography.fontWeight.bold,
+    fontSize: Typography.fontSize.md
+  },
+  alertTime: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.text.muted
+  },
+  alertBody: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.text.secondary,
+    lineHeight: 21
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: Colors.text.muted,
+    fontSize: Typography.fontSize.md,
+    marginTop: 60
+  },
 
   // Chat Styles
   chatWrapper: { flex: 1 },
   chatList: {
-    padding: 20,
-    paddingBottom: 10,
+    padding: Spacing.lg,
+    paddingBottom: 120, // Increased to ensure space for input area when keyboard appears
   },
-  bubbleWrap: { marginBottom: 15, maxWidth: '85%' },
+  bubbleWrap: { marginBottom: Spacing.lg, maxWidth: '85%' },
   bubbleLeft: { alignSelf: 'flex-start' },
   bubbleRight: { alignSelf: 'flex-end' },
-  bubble: { padding: 14, borderRadius: 20, minWidth: 60 },
-  adminBubble: { backgroundColor: '#fff', borderBottomLeftRadius: 5 },
-  studentBubble: { backgroundColor: '#F97316', borderBottomRightRadius: 5 },
-  bubbleText: { fontSize: 15, lineHeight: 22 },
-  adminText: { color: '#1f2937' },
-  studentText: { color: '#fff' },
-  bubbleTime: { fontSize: 11, color: '#9CA3AF' },
+  bubble: {
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.xl,
+    minWidth: 60
+  },
+  adminBubble: {
+    backgroundColor: Colors.background.primary,
+    borderBottomLeftRadius: BorderRadius.xs
+  },
+  studentBubble: {
+    backgroundColor: Colors.secondary,
+    borderBottomRightRadius: BorderRadius.xs
+  },
+  bubbleText: {
+    fontSize: Typography.fontSize.md,
+    lineHeight: 22
+  },
+  adminText: { color: Colors.text.primary },
+  studentText: { color: Colors.text.inverse },
+  bubbleTime: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.text.muted
+  },
 
   inputArea: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    elevation: 10, // increased elevation to ensure it sits on top beautifully
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
+    backgroundColor: Colors.background.primary,
+    borderTopLeftRadius: BorderRadius.xxl,
+    borderTopRightRadius: BorderRadius.xxl,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    paddingBottom: Platform.OS === 'ios' ? Spacing.md : Spacing.xl, // Extra padding for Android keyboard
+    ...Shadows.lg,
+    marginBottom: Platform.OS === 'android' ? Spacing.md : 0, // Extra margin for Android
   },
   chatInput: {
     flex: 1,
     maxHeight: 120,
     minHeight: 45,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 12,
-    color: '#1f2937',
-    fontSize: 15,
+    backgroundColor: Colors.slate[100],
+    borderRadius: BorderRadius.xxl,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.md,
+    color: Colors.text.primary,
+    fontSize: Typography.fontSize.md,
   },
   sendBtn: {
-    backgroundColor: '#1E2F97', // Changed from #F97316 to #1E2F97 to match the image precisely
+    backgroundColor: Colors.primary,
     width: 45,
     height: 45,
-    borderRadius: 25,
+    borderRadius: BorderRadius.xxl,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 10,
+    marginLeft: Spacing.md,
   },
 
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: Colors.blackAlpha[50],
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: Spacing.lg,
   },
   modalContainer: {
     width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
+    backgroundColor: Colors.background.primary,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
     alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    ...Shadows.lg,
   },
   modalIconWrap: {
-    padding: 16,
-    borderRadius: 20,
-    marginBottom: 16,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.lg,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginBottom: 8,
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.extrabold,
+    marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   modalTime: {
-    fontSize: 13,
-    color: '#9CA3AF',
-    marginBottom: 20,
+    fontSize: Typography.fontSize.sm,
+    color: Colors.text.muted,
+    marginBottom: Spacing.xl,
   },
   modalBodyContainer: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.slate[100],
     width: '100%',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 24,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.xl,
   },
   modalBody: {
-    fontSize: 15,
-    color: '#4B5563',
+    fontSize: Typography.fontSize.md,
+    color: Colors.text.secondary,
     lineHeight: 24,
     textAlign: 'center',
   },
   modalBtn: {
     width: '100%',
-    paddingVertical: 14,
-    borderRadius: 16,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
   },
   modalBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
+    color: Colors.text.inverse,
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.bold,
   },
 });

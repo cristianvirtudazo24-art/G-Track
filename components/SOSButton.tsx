@@ -1,6 +1,7 @@
 import { Octicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { BorderRadius, Colors, Shadows, Spacing, Typography } from '../constants/theme';
 
 interface Props {
   onPress: () => void;
@@ -25,38 +26,34 @@ export const SOSButton = ({ onPress }: Props) => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#E8313A',
+    backgroundColor: '#DC2626', // Brighter red for SOS
     width: '100%',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 14,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#E8313A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    marginBottom: 12,
+    ...Shadows.md,
+    marginBottom: Spacing.md,
   },
   iconContainer: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    padding: 10,
-    borderRadius: 12,
-    marginRight: 14,
+    backgroundColor: Colors.whiteAlpha[15],
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginRight: Spacing.lg,
   },
   textContainer: { flex: 1 },
   sosText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: '900',
+    color: Colors.text.inverse,
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.black,
     letterSpacing: 2,
-    marginBottom: 1,
+    marginBottom: Spacing.xs,
   },
   statusText: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
-    fontWeight: '500',
+    color: Colors.whiteAlpha[85],
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.medium,
   },
-  chevron: { marginLeft: 6 },
+  chevron: { marginLeft: Spacing.xs },
 });
