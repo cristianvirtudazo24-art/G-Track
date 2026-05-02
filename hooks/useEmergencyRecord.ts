@@ -19,9 +19,11 @@ export const useEmergencyRecord = () => {
       try {
         setIsRecording(true);
 
-        // Try recording with lower quality first
+        // Record with optimized settings for file size
+        // Target: Keep under 20MB for backend requirement
         let video = await cameraRef.current.recordAsync({
-          maxDuration: 5,
+          maxDuration: 5, // 5 seconds max
+          maxFileSize: 20 * 1024 * 1024, // 20MB limit per backend spec
         });
 
         if (video?.uri) {
@@ -29,20 +31,20 @@ export const useEmergencyRecord = () => {
           const fileInfo = await getInfoAsync(video.uri) as any;
           console.log('Recorded video size:', fileInfo.size, 'bytes (~', Math.round(fileInfo.size / 1024 / 1024), 'MB)');
 
-          // If file is still too large (>6MB), try lowest quality
-          if (fileInfo.size > 6 * 1024 * 1024) {
-            console.warn('Video too large, trying lowest quality...');
+          // If file is larger than 20MB, compress
+          if (fileInfo.size > 20 * 1024 * 1024) {
+            console.warn('Video exceeds 20MB limit, attempting recompression...');
             // Delete the large file
             await deleteAsync(video.uri, { idempotent: true });
 
-            // Record with lowest quality
+            // Record shorter duration
             video = await cameraRef.current.recordAsync({
-              maxDuration: 3, // Even shorter duration
+              maxDuration: 3, // Reduce to 3 seconds if previous was too large
             });
 
             if (video?.uri) {
               const newFileInfo = await getInfoAsync(video.uri) as any;
-              console.log('Compressed video size:', newFileInfo.size, 'bytes (~', Math.round(newFileInfo.size / 1024 / 1024), 'MB)');
+              console.log('Recompressed video size:', newFileInfo.size, 'bytes (~', Math.round(newFileInfo.size / 1024 / 1024), 'MB)');
             }
           }
 

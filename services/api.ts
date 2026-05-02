@@ -112,8 +112,9 @@ export const uploadEmergencyVideo = async (payload: {
   longitude?: string | number;
   battery_level?: string | number;
   signal?: string;
+  isEmergency?: boolean; // true for SOS, false for student_message
 }) => {
-  const { videoUri, studentId, message, latitude, longitude, battery_level, signal } = payload;
+  const { videoUri, studentId, message, latitude, longitude, battery_level, signal, isEmergency = false } = payload;
 
   if (!videoUri) {
     console.error('❌ API Error: Video Upload Failed - missing video URI');
@@ -125,40 +126,70 @@ export const uploadEmergencyVideo = async (payload: {
     // @ts-ignore
     formData.append('video', { uri: videoUri, type: 'video/mp4', name: 'sos.mp4' });
     formData.append('student_id', studentId);
-    formData.append('target', 'sos');
-    formData.append('message', message || 'Live Emergency Feed');
+    
+    // Use correct target based on emergency type
+    // Backend accepts: student_message (normal), sos (emergency), blackout
+    formData.append('target', isEmergency ? 'sos' : 'student_message');
+    
+    // Message is REQUIRED by backend - use fallback if not provided
+    formData.append('message', message || 'Video uploaded');
+    
     if (latitude !== undefined && latitude !== null) formData.append('latitude', String(latitude));
     if (longitude !== undefined && longitude !== null) formData.append('longitude', String(longitude));
     if (battery_level !== undefined && battery_level !== null) formData.append('battery_level', String(battery_level));
     if (signal) formData.append('signal', signal);
 
-    const uploadUrl = `${API_BASE_URL}/upload-video`;
+    // Use /api/notifications/send as per admin spec
+    const uploadUrl = `${API_BASE_URL}/notifications/send`;
     console.log('Uploading video to', uploadUrl, { videoUri, studentId, message, latitude, longitude, battery_level, signal });
 
-    const response = await fetch(uploadUrl, {
-      method: 'POST',
-      body: formData,
-      // Add timeout for large file uploads
-      signal: AbortSignal.timeout(30000), // 30 second timeout
-    });
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for large files (20MB)
 
-    const responseText = await response.text();
-    let responseData: any;
     try {
-      responseData = JSON.parse(responseText);
-    } catch {
-      responseData = responseText;
-    }
-
-    if (!response.ok) {
-      console.error('❌ API Error: Video Upload Failed', {
-        status: response.status,
-        body: responseData,
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
       });
-      return null;
-    }
 
-    return responseData;
+      clearTimeout(timeoutId);
+
+      const responseText = await response.text();
+      let responseData: any;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        responseData = responseText;
+      }
+
+      // Handle specific error codes per admin spec
+      if (response.status === 404) {
+        console.error('❌ API Error: Invalid Student ID');
+        return null;
+      }
+
+      if (response.status === 422) {
+        console.error('❌ API Error: Validation Error (file too large or missing required field)', responseData);
+        return null;
+      }
+
+      if (!response.ok) {
+        console.error('❌ API Error: Video Upload Failed', {
+          status: response.status,
+          body: responseData,
+        });
+        return null;
+      }
+
+      // Success response includes notification_id
+      console.log('✅ Video uploaded successfully', responseData);
+      return responseData;
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      throw fetchError;
+    }
   } catch (error: any) {
     console.error('❌ API Error: Video Upload Failed', error.message || error);
     return null;

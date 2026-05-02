@@ -60,9 +60,11 @@ export default function HomeScreen() {
       const signalStrength = getFormattedNetworkInfo();
       await sendBlackoutAlert({ studentId, battery: batteryPercent, signal: signalStrength, message: '' });
     } else {
-      // For 'help' type, upload video first, then send notification
+      // For 'help' type, try to upload video, then send notification (regardless of video success)
       if (type === 'help') {
         const videoUri = await startEmergencyCapture();
+        let videoMessage = 'Video feed is not available'; // Default message
+        
         if (videoUri) {
           const batteryLevel = await Battery.getBatteryLevelAsync();
           const batteryPercent = Math.round(batteryLevel * 100);
@@ -73,32 +75,36 @@ export default function HomeScreen() {
           const uploadResult = await uploadEmergencyVideo({
             videoUri,
             studentId: String(studentId),
-            message: 'Live Emergency Feed',
+            message: 'Emergency - I Need Help',
             latitude: location?.coords?.latitude,
             longitude: location?.coords?.longitude,
             battery_level: batteryPercent,
             signal: signalStrength,
+            isEmergency: true, // Mark this as SOS emergency
           });
 
           setIsUploading(false);
 
+          // If video upload succeeds, update message
           if (uploadResult) {
-            // Only send SOS notification after video upload succeeds
-            const batteryLevel = await Battery.getBatteryLevelAsync();
-            const batteryPercent = Math.round(batteryLevel * 100);
-            const signalStrength = getFormattedNetworkInfo();
-            await sendSOS({ type, location, studentId, battery: batteryPercent, signal: signalStrength });
+            videoMessage = 'Live Emergency Feed';
             setVideoSent(true);
+            console.log('Video uploaded successfully');
           } else {
-            console.error('Video upload failed, not sending SOS notification');
-            alert('Failed to upload emergency video. Please try again.');
-            return;
+            console.warn('Video upload failed, sending SOS with unavailable message');
+            videoMessage = 'Video feed is not available';
           }
         } else {
-          console.error('Video recording failed');
-          alert('Failed to record emergency video. Please try again.');
-          return;
+          console.warn('Video recording failed, sending SOS with unavailable message');
+          videoMessage = 'Video feed is not available';
         }
+
+        // Send SOS notification regardless of video upload success
+        const batteryLevel = await Battery.getBatteryLevelAsync();
+        const batteryPercent = Math.round(batteryLevel * 100);
+        const signalStrength = getFormattedNetworkInfo();
+        await sendSOS({ type, location, studentId, battery: batteryPercent, signal: signalStrength });
+        
       } else {
         // For 'safe' type, just send the notification
         const batteryLevel = await Battery.getBatteryLevelAsync();
