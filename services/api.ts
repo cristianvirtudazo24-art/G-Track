@@ -50,6 +50,17 @@ export const getRecentLocations = async () => {
   }
 };
 
+export const getStudentStatus = async (studentId: string | number) => {
+  try {
+    const locations = await getRecentLocations();
+    const studentLocation = locations.find((loc: any) => String(loc.student?.id) === String(studentId) || String(loc.student?.student_id) === String(studentId));
+    return studentLocation || null;
+  } catch (error) {
+    console.error("❌ API Error: Fetch Student Status Failed", error);
+    return null;
+  }
+};
+
 export const syncStudentData = async (payload: {
   studentId: string | number;
   latitude: number;

@@ -1,12 +1,12 @@
 import * as Battery from 'expo-battery';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { HomeView } from '../../../components/HomeView';
 import { StatusSuccessModal } from '../../../components/StatusSuccessModal';
 import { useEmergencyRecord } from '../../../hooks/useEmergencyRecord';
 import { useLocation } from '../../../hooks/useLocation';
 import { useNetworkInfo } from '../../../hooks/useNetworkInfo';
 import { useUser } from '../../../hooks/useUser';
-import { sendBlackoutAlert, sendSOS, uploadEmergencyVideo } from '../../../services/api';
+import { getStudentStatus, sendBlackoutAlert, sendSOS, uploadEmergencyVideo } from '../../../services/api';
 
 export default function HomeScreen() {
   const { session, loading } = useUser();
@@ -20,6 +20,28 @@ export default function HomeScreen() {
   const [currentStatus, setCurrentStatus] = useState<'safe' | 'help' | 'blackout'>('safe');
   const [videoSent, setVideoSent] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Poll for status updates from server
+  useEffect(() => {
+    if (!session.dbId) return;
+
+    const pollStatus = async () => {
+      if (session.dbId) {
+        const statusData = await getStudentStatus(session.dbId);
+        if (statusData && statusData.sos_status) {
+          const serverStatus = statusData.sos_status === 'safe' ? 'safe' : 'help';
+          setCurrentStatus(serverStatus);
+        }
+      }
+    };
+
+    // Poll every 10 seconds
+    const interval = setInterval(pollStatus, 10000);
+    // Initial poll
+    pollStatus();
+
+    return () => clearInterval(interval);
+  }, [session.dbId]);
 
   if (loading) return null;
 
