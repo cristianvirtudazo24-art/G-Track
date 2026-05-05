@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   sosText: {
     color: Colors.text.inverse,
     fontSize: Typography.fontSize.xl,
-    fontWeight: Typography.fontWeight.black,
+    fontWeight: Typography.fontWeight.extrabold,
     letterSpacing: 2,
     marginBottom: Spacing.xs,
   },
