@@ -22,8 +22,8 @@ interface MessageItem {
 
 const ALERT_CONFIG: Record<string, { color: string; bg: string; icon: string; defaultTitle: string }> = {
   info: { color: Colors.primary, bg: Colors.primaryLight, icon: 'information', defaultTitle: 'Announcement' },
-  warning: { color: Colors.secondary, bg: Colors.secondaryLight, icon: 'alert', defaultTitle: 'Security Warning' },
-  danger: { color: Colors.danger, bg: Colors.dangerLight, icon: 'alert-octagon', defaultTitle: 'Urgent Alert' },
+  warning: { color: Colors.secondary, bg: Colors.primaryLight, icon: 'alert', defaultTitle: 'Security Warning' },
+  danger: { color: Colors.accent, bg: Colors.primaryLight, icon: 'alert-octagon', defaultTitle: 'Urgent Alert' },
 };
 
 export default function AlertsScreen() {
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   },
   mainTabsBox: {
     flexDirection: 'row',
-    backgroundColor: Colors.whiteAlpha[10],
+    backgroundColor: Colors.whiteAlpha[15],
     borderRadius: BorderRadius.xl,
     padding: Spacing.xs,
     width: '100%',
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.secondary,
   },
   mainTabText: {
-    color: Colors.whiteAlpha[60],
+    color: Colors.whiteAlpha[15],
     fontWeight: Typography.fontWeight.bold,
     fontSize: Typography.fontSize.sm,
   },
@@ -501,11 +501,11 @@ const styles = StyleSheet.create({
   },
   adminBubble: {
     backgroundColor: Colors.background.primary,
-    borderBottomLeftRadius: BorderRadius.xs
+    borderBottomLeftRadius: BorderRadius.sm
   },
   studentBubble: {
     backgroundColor: Colors.secondary,
-    borderBottomRightRadius: BorderRadius.xs
+    borderBottomRightRadius: BorderRadius.sm
   },
   bubbleText: {
     fontSize: Typography.fontSize.md,

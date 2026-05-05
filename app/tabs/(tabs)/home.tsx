@@ -60,17 +60,17 @@ export default function HomeScreen() {
       const signalStrength = getFormattedNetworkInfo();
       await sendBlackoutAlert({ studentId, battery: batteryPercent, signal: signalStrength, message: '' });
     } else {
-      // For 'help' type, try to upload video, then send notification (regardless of video success)
+      // For 'help' type, upload video (which creates the notification) - only notify if video upload succeeds
       if (type === 'help') {
         const videoUri = await startEmergencyCapture();
         let videoMessage = 'Video feed is not available'; // Default message
-        
+
         if (videoUri) {
           const batteryLevel = await Battery.getBatteryLevelAsync();
           const batteryPercent = Math.round(batteryLevel * 100);
           const signalStrength = getFormattedNetworkInfo();
 
-          // Start uploading video
+          // Start uploading video - this creates the admin notification
           setIsUploading(true);
           const uploadResult = await uploadEmergencyVideo({
             videoUri,
@@ -85,25 +85,21 @@ export default function HomeScreen() {
 
           setIsUploading(false);
 
-          // If video upload succeeds, update message
+          // Only notify admin if video upload succeeds
           if (uploadResult) {
             videoMessage = 'Live Emergency Feed';
             setVideoSent(true);
-            console.log('Video uploaded successfully');
+            console.log('Video uploaded successfully - admin notified');
           } else {
-            console.warn('Video upload failed, sending SOS with unavailable message');
+            console.warn('Video upload failed - no notification sent to admin');
             videoMessage = 'Video feed is not available';
+            // Don't send any fallback notification
           }
         } else {
-          console.warn('Video recording failed, sending SOS with unavailable message');
+          console.warn('Video recording failed - no notification sent to admin');
           videoMessage = 'Video feed is not available';
+          // Don't send any notification if video recording fails
         }
-
-        // Send SOS notification regardless of video upload success
-        const batteryLevel = await Battery.getBatteryLevelAsync();
-        const batteryPercent = Math.round(batteryLevel * 100);
-        const signalStrength = getFormattedNetworkInfo();
-        await sendSOS({ type, location, studentId, battery: batteryPercent, signal: signalStrength });
         
       } else {
         // For 'safe' type, just send the notification

@@ -139,9 +139,9 @@ export const uploadEmergencyVideo = async (payload: {
     if (battery_level !== undefined && battery_level !== null) formData.append('battery_level', String(battery_level));
     if (signal) formData.append('signal', signal);
 
-    // Use /api/notifications/send as per admin spec
+    // Use /api/notifications/send for emergency video uploads (per admin spec - this creates the notification)
     const uploadUrl = `${API_BASE_URL}/notifications/send`;
-    console.log('Uploading video to', uploadUrl, { videoUri, studentId, message, latitude, longitude, battery_level, signal });
+    console.log('Uploading emergency video to', uploadUrl, { videoUri, studentId, message, latitude, longitude, battery_level, signal });
 
     // Create abort controller for timeout
     const controller = new AbortController();

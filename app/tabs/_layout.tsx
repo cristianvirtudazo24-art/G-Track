@@ -1,11 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Battery from 'expo-battery';
 import { Stack } from 'expo-router';
 import * as TaskManager from 'expo-task-manager';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useState, useRef } from 'react';
-import { syncStudentData, updatePushToken, getStudentNotifications } from '../../services/api';
-import { registerForPushNotificationsAsync, setupNotificationListeners, scheduleLocalNotification } from '../../services/notifications';
+import React, { useEffect, useRef, useState } from 'react';
 import { AnnouncementModal } from '../../components/AnnouncementModal';
+import { getStudentNotifications, syncStudentData, updatePushToken } from '../../services/api';
+import { registerForPushNotificationsAsync, scheduleLocalNotification, setupNotificationListeners } from '../../services/notifications';
 
 const LOCATION_TASK_NAME = 'background-location-task';
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
@@ -30,7 +30,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         battery: batteryPercent,
-        status: "Active",
+        status: "Safe",
         timestamp: new Date().toISOString()
       });
       lastSyncTime = now;
