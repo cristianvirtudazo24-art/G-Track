@@ -65,9 +65,99 @@ This document provides the exact technical requirements for the Laravel backend 
     }
     ```
 
+### E. Emergency Video Upload ⭐ **CRITICAL**
+*   **Method**: `POST`
+*   **Path**: `/api/upload-video`
+*   **Content-Type**: `multipart/form-data`
+*   **Form Fields**:
+    - `video` (file upload) - MP4 video file (up to 5-6MB, 5 seconds duration)
+    - `student_id` (string/number) - Student database ID
+    - `target` (string) - Fixed value: `"sos"` (indicates this is an SOS video)
+    - `message` (string) - Will be `"Live Emergency Feed"`
+    - `latitude` (number, optional) - Student's latitude
+    - `longitude` (number, optional) - Student's longitude
+    - `battery_level` (number, optional) - Battery percentage (0-100)
+    - `signal` (string, optional) - Signal strength info (e.g., "WiFi - Good | IP: 192.168.1.1")
+
+*   **Expected Response** (Success):
+    ```json
+    {
+      "success": true,
+      "message": "Video uploaded successfully",
+      "video_id": 123,
+      "student_id": 15
+    }
+    ```
+
+*   **Expected Response** (Error):
+    ```json
+    {
+      "success": false,
+      "message": "Video upload failed"
+    }
+    ```
+
+*   **Backend Requirements**:
+    1. Accept multipart/form-data with file upload
+    2. Store video file to storage (e.g., `storage/app/sos-videos/`)
+    3. Create a record in your database linking the video to the student
+    4. Return JSON response with success status
+    5. Optionally: Process video (compress, convert format, extract frames for thumbnail)
+
 ---
 
 ## 4. Important Database Note
 Please ensure your `Student` model allows the following updates:
 1.  `$student->status = true` (marking online when GPS is received).
 2.  `$student->last_update = now()` (timestamp of the last sync).
+
+## 5. Video Upload Implementation Example (Laravel)
+```php
+// routes/api.php
+Route::post('/upload-video', [EmergencyController::class, 'uploadVideo']);
+
+// app/Http/Controllers/EmergencyController.php
+public function uploadVideo(Request $request)
+{
+    $validated = $request->validate([
+        'video' => 'required|file|mimes:mp4,mov|max:6144', // 6MB max
+        'student_id' => 'required|exists:students,id',
+        'target' => 'required|in:sos',
+        'message' => 'nullable|string',
+        'latitude' => 'nullable|numeric',
+        'longitude' => 'nullable|numeric',
+        'battery_level' => 'nullable|numeric',
+        'signal' => 'nullable|string',
+    ]);
+
+    $student = Student::find($request->student_id);
+    
+    if ($request->hasFile('video')) {
+        $videoPath = $request->file('video')->store('sos-videos', 'public');
+        
+        // Create database record
+        $video = SOS_Video::create([
+            'student_id' => $student->id,
+            'video_path' => $videoPath,
+            'message' => $request->message,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+            'battery_level' => $request->battery_level,
+            'signal' => $request->signal,
+            'uploaded_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Video uploaded successfully',
+            'video_id' => $video->id,
+            'student_id' => $student->id,
+        ], 201);
+    }
+
+    return response()->json([
+        'success' => false,
+        'message' => 'Video upload failed',
+    ], 400);
+}
+```

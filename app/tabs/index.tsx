@@ -1,9 +1,13 @@
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { BorderRadius, Colors, Shadows, Spacing, Typography } from '../../constants/theme';
 import { useLocation } from '../../hooks/useLocation';
 import { login } from '../../services/auth';
+
+const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -13,6 +17,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [studentId, setStudentId] = useState('');
   const [role, setRole] = useState<'student' | 'admin'>('student');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSignIn = async () => {
     const isStudent = role === 'student';
@@ -59,110 +64,220 @@ export default function LoginScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.logoWrapper}>
-          <Image
-            source={require('../../assets/images/logo.png')}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
-        </View>
-        <Text style={styles.appTitle}>G!Track</Text>
-        <Text style={styles.appSubtitle}>Student Safety & Tracking System</Text>
-      </View>
-
-      <View style={styles.formCard}>
-        <View style={styles.roleSelector}>
-          <TouchableOpacity 
-            style={[styles.roleButton, role === 'student' && styles.roleButtonActive]} 
-            onPress={() => setRole('student')}
-          >
-            <Text style={[styles.roleButtonText, role === 'student' && styles.roleButtonTextActive]}>Student</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.roleButton, role === 'admin' && styles.roleButtonActive]} 
-            onPress={() => setRole('admin')}
-          >
-            <Text style={[styles.roleButtonText, role === 'admin' && styles.roleButtonTextActive]}>Admin</Text>
-          </TouchableOpacity>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View style={styles.logoWrapper}>
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={styles.appTitle}>G!Track</Text>
+          <Text style={styles.appSubtitle}>Student Safety & Tracking System</Text>
         </View>
 
-        <Text style={styles.welcomeText}>{role === 'student' ? 'Student Sign In' : 'Admin Sign In'}</Text>
+        <View style={styles.formCard}>
+          <View style={styles.roleSelector}>
+            <TouchableOpacity 
+              style={[styles.roleButton, role === 'student' && styles.roleButtonActive]} 
+              onPress={() => setRole('student')}
+            >
+              <Text style={[styles.roleButtonText, role === 'student' && styles.roleButtonTextActive]}>Student</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.roleButton, role === 'admin' && styles.roleButtonActive]} 
+              onPress={() => setRole('admin')}
+            >
+              <Text style={[styles.roleButtonText, role === 'admin' && styles.roleButtonTextActive]}>Admin</Text>
+            </TouchableOpacity>
+          </View>
 
-        {role === 'admin' ? (
-          <>
-            <Text style={styles.label}>Email / Username</Text>
+          <Text style={styles.welcomeText}>{role === 'student' ? 'Student Sign In' : 'Admin Sign In'}</Text>
+
+          {role === 'admin' ? (
+            <>
+              <Text style={styles.label}>Email / Username</Text>
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter email"
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+            </>
+          ) : (
+            <>
+              <Text style={styles.label}>Student ID</Text>
+              <TextInput
+                style={styles.input}
+                value={studentId}
+                onChangeText={setStudentId}
+                placeholder="Enter Student ID"
+                autoCapitalize="characters"
+              />
+            </>
+          )}
+
+          <Text style={styles.label}>Password</Text>
+          <View style={styles.passwordContainer}>
             <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Enter email"
+              style={styles.passwordInput}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              placeholder="Enter password"
               autoCapitalize="none"
             />
-          </>
-        ) : (
-          <>
-            <Text style={styles.label}>Student ID</Text>
-            <TextInput
-              style={styles.input}
-              value={studentId}
-              onChangeText={setStudentId}
-              placeholder="Enter Student ID"
-              autoCapitalize="characters"
-            />
-          </>
-        )}
+            <TouchableOpacity
+              style={styles.eyeIcon}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off' : 'eye'}
+                size={20}
+                color="#6B7280"
+              />
+            </TouchableOpacity>
+          </View>
 
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          placeholder="Enter password"
-        />
+          <TouchableOpacity style={styles.button} onPress={handleSignIn}>
+            <Text style={styles.buttonText}>Sign In</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} onPress={handleSignIn}>
-          <Text style={styles.buttonText}>Sign In</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.devNote}>Dev Mode: Location sync starts after login</Text>
-      </View>
-    </ScrollView>
+          <Text style={styles.devNote}>Dev Mode: Location sync starts after login</Text>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#1E2F97', padding: 24, justifyContent: 'center' },
-  header: { alignItems: 'center', marginBottom: 25 },
+  container: { flex: 1, backgroundColor: Colors.primary },
+  scrollContainer: { flexGrow: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, justifyContent: 'center' },
+  header: { alignItems: 'center', marginBottom: Spacing.xl },
   logoWrapper: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: 'white',
+    width: Math.min(width * 0.3, 100), // Responsive logo size
+    height: Math.min(width * 0.3, 100),
+    borderRadius: BorderRadius.xxl,
+    backgroundColor: Colors.background.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 5,
+    marginBottom: Spacing.lg,
+    ...Shadows.xl,
   },
-  logoImage: { width: '80%', height: '80%' },
-  appTitle: { color: '#fff', fontSize: 28, fontWeight: 'bold', letterSpacing: 1 },
-  appSubtitle: { color: '#fff', fontSize: 13, opacity: 0.85 },
-  formCard: { backgroundColor: '#fff', borderRadius: 18, padding: 22, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 10 },
-  roleSelector: { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 10, padding: 3, marginBottom: 18 },
-  roleButton: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
-  roleButtonActive: { backgroundColor: '#fff', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2 },
-  roleButtonText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
-  roleButtonTextActive: { color: '#1E2F97' },
-  welcomeText: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: '#111827' },
-  label: { fontSize: 13, fontWeight: '600', color: '#4B5563', marginBottom: 6 },
-  input: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, padding: 12, marginBottom: 12, fontSize: 15, color: '#111827' },
-  button: { backgroundColor: '#F97316', padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  devNote: { textAlign: 'center', color: '#9CA3AF', fontSize: 11, marginTop: 15 }
+  logoImage: { width: '70%', height: '70%' },
+  appTitle: {
+    color: Colors.text.inverse,
+    fontSize: Typography.fontSize.xxxl,
+    fontWeight: Typography.fontWeight.extrabold,
+    letterSpacing: 1.5,
+    marginBottom: Spacing.xs,
+  },
+  appSubtitle: {
+    color: Colors.text.inverse,
+    fontSize: Typography.fontSize.md,
+    opacity: 0.9,
+    fontWeight: Typography.fontWeight.medium,
+    textAlign: 'center',
+  },
+  formCard: {
+    backgroundColor: Colors.background.primary,
+    borderRadius: BorderRadius.xxl,
+    padding: Spacing.lg,
+    marginHorizontal: Spacing.sm,
+    ...Shadows.lg,
+  },
+  roleSelector: {
+    flexDirection: 'row',
+    backgroundColor: Colors.slate[100],
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xs,
+    marginBottom: Spacing.xl,
+  },
+  roleButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    borderRadius: BorderRadius.lg,
+  },
+  roleButtonActive: {
+    backgroundColor: Colors.background.primary,
+    ...Shadows.sm,
+  },
+  roleButtonText: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.slate[500],
+  },
+  roleButtonTextActive: {
+    color: Colors.primary,
+  },
+  welcomeText: {
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.bold,
+    marginBottom: Spacing.lg,
+    color: Colors.text.primary,
+    textAlign: 'center',
+  },
+  label: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+    color: Colors.text.secondary,
+    marginBottom: Spacing.sm,
+  },
+  input: {
+    borderWidth: 1.5,
+    borderColor: Colors.border.medium,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    fontSize: Typography.fontSize.md,
+    color: Colors.text.primary,
+    backgroundColor: Colors.background.primary,
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.border.medium,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.md,
+    backgroundColor: Colors.background.primary,
+  },
+  passwordInput: {
+    flex: 1,
+    padding: Spacing.md,
+    fontSize: Typography.fontSize.md,
+    color: Colors.text.primary,
+  },
+  eyeIcon: {
+    padding: Spacing.md,
+  },
+  button: {
+    backgroundColor: Colors.secondary,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    marginTop: Spacing.md,
+    ...Shadows.md,
+  },
+  buttonText: {
+    color: Colors.text.inverse,
+    fontWeight: Typography.fontWeight.bold,
+    fontSize: Typography.fontSize.lg,
+  },
+  devNote: {
+    textAlign: 'center',
+    color: Colors.text.muted,
+    fontSize: Typography.fontSize.xs,
+    marginTop: Spacing.xl,
+    fontStyle: 'italic',
+  },
 });

@@ -1,6 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Battery from 'expo-battery';
 import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
 import { syncStudentData } from '../services/api';
 
@@ -92,7 +92,7 @@ export const useLocation = () => {
                 latitude: newLocation.coords.latitude,
                 longitude: newLocation.coords.longitude,
                 battery: batteryPercent,
-                status: "Active",
+                status: "Safe",
               });
 
               if (success) lastSyncTime.current = now;
