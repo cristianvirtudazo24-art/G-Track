@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AnnouncementModal } from '../../components/AnnouncementModal';
 import { getStudentNotifications, syncStudentData, updatePushToken } from '../../services/api';
 import { registerForPushNotificationsAsync, scheduleLocalNotification, setupNotificationListeners } from '../../services/notifications';
+import { parseBroadcastMessage } from '../../utils/helpers';
 
 const LOCATION_TASK_NAME = 'background-location-task';
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
@@ -38,8 +39,14 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
   }
 });
 
+type AnnouncementPayload = {
+  title: string;
+  subject?: string;
+  body: string;
+};
+
 export default function RootLayout() {
-  const [announcement, setAnnouncement] = useState<{ title: string; body: string } | null>(null);
+  const [announcement, setAnnouncement] = useState<AnnouncementPayload | null>(null);
   const lastSeenIdRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -62,11 +69,16 @@ export default function RootLayout() {
 
         if (latest && latest.id !== lastSeenIdRef.current) {
           if (lastSeenIdRef.current !== null) {
+            const rawMessage = latest.message || latest.text || '';
+            const parsed = parseBroadcastMessage(rawMessage);
+            const subject = latest.title || parsed.subject;
+            const body = parsed.body;
             scheduleLocalNotification(
-              "New Campus Announcement",
-              latest.message || "You have a new broadcast message."
+              'New Campus Announcement',
+              subject,
+              { subject, body }
             );
-            setAnnouncement({ title: "Admin Broadcast", body: latest.message });
+            setAnnouncement({ title: 'Admin Broadcast', subject, body });
             const { DeviceEventEmitter } = require('react-native');
             DeviceEventEmitter.emit('refreshAlerts');
           }
@@ -80,17 +92,33 @@ export default function RootLayout() {
 
     const cleanup = setupNotificationListeners(
       (notification) => {
-        const { title, body } = notification.request.content;
+        const { title, body, data } = notification.request.content;
+        const payload = data ?? {};
+        const parsed = parseBroadcastMessage(payload.body ?? payload.message ?? body ?? '');
+        const subject = payload.subject ?? title ?? parsed.subject;
+        const finalBody = payload.body ?? payload.message ?? parsed.body;
         if (isMounted) {
-          setAnnouncement({ title: title ?? 'Announcement', body: body ?? '' });
+          setAnnouncement({
+            title: title ?? 'Admin Broadcast',
+            subject,
+            body: finalBody,
+          });
           const { DeviceEventEmitter } = require('react-native');
           DeviceEventEmitter.emit('refreshAlerts');
         }
       },
       (response) => {
-        const { title, body } = response.notification.request.content;
+        const { title, body, data } = response.notification.request.content;
+        const payload = data ?? {};
+        const parsed = parseBroadcastMessage(payload.body ?? payload.message ?? body ?? '');
+        const subject = payload.subject ?? title ?? parsed.subject;
+        const finalBody = payload.body ?? payload.message ?? parsed.body;
         if (isMounted) {
-          setAnnouncement({ title: title ?? 'Announcement', body: body ?? '' });
+          setAnnouncement({
+            title: title ?? 'Admin Broadcast',
+            subject,
+            body: finalBody,
+          });
           const { DeviceEventEmitter } = require('react-native');
           DeviceEventEmitter.emit('refreshAlerts');
         }
@@ -114,6 +142,7 @@ export default function RootLayout() {
       <AnnouncementModal
         visible={!!announcement}
         title={announcement?.title ?? ''}
+        subject={announcement?.subject}
         message={announcement?.body ?? ''}
         onClose={() => setAnnouncement(null)}
       />

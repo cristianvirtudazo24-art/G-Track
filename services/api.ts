@@ -145,7 +145,8 @@ export const uploadEmergencyVideo = async (payload: {
 
     // Create abort controller for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for large files (20MB)
+    const timeoutMs = 180000; // 180 seconds timeout for larger uploads up to 50MB
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(uploadUrl, {
@@ -170,8 +171,18 @@ export const uploadEmergencyVideo = async (payload: {
         return null;
       }
 
+      if (response.status === 413) {
+        console.error('❌ API Error: Payload Too Large (video exceeds server max upload size)', responseData);
+        return null;
+      }
+
       if (response.status === 422) {
         console.error('❌ API Error: Validation Error (file too large or missing required field)', responseData);
+        return null;
+      }
+
+      if (response.status === 504) {
+        console.error('❌ API Error: Upload timed out on the server side', responseData);
         return null;
       }
 

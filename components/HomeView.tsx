@@ -5,6 +5,7 @@ import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from
 import { LocationCard } from './LocationCard';
 import { SOSButton } from './SOSButton';
 import { SOSModal } from './SOSModal';
+import { StudentMapView } from './StudentMapView';
 
 const { width } = Dimensions.get('window');
 
@@ -88,6 +89,11 @@ export const HomeView = (props: any) => {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <LocationCard
+          location={props.location}
+          errorMsg={props.errorMsg}
+        />
+
+        <StudentMapView
           location={props.location}
           errorMsg={props.errorMsg}
         />

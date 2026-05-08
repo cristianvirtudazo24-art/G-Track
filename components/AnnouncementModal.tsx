@@ -1,22 +1,31 @@
 import React from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface AnnouncementModalProps {
   visible: boolean;
   title: string;
+  subject?: string;
   message: string;
   onClose: () => void;
+  onAcknowledge?: () => void;
 }
 
 const { width } = Dimensions.get('window');
 
 export const AnnouncementModal: React.FC<AnnouncementModalProps> = ({ 
-  visible, 
-  title, 
-  message, 
-  onClose 
+  visible,
+  title,
+  subject,
+  message,
+  onClose,
+  onAcknowledge,
 }) => {
+  const handleAcknowledge = () => {
+    if (onAcknowledge) onAcknowledge();
+    onClose();
+  };
+
   return (
     <Modal
       transparent
@@ -27,17 +36,26 @@ export const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
       <View style={styles.overlay}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <Ionicons name="notifications" size={24} color="#FF9933" />
+            <View style={styles.titleBlock}>
+              <Text style={styles.title}>{title || 'Broadcast Announcement'}</Text>
+              {subject ? <Text style={styles.subject}>{subject}</Text> : null}
             </View>
-            <Text style={styles.title}>{title || "Broadcast Announcement"}</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.8}>
+              <Ionicons name="close" size={24} color="#E5E7EB" />
+            </TouchableOpacity>
           </View>
-          
-          <Text style={styles.message}>{message}</Text>
-          
+
+          <ScrollView
+            style={styles.messageContainer}
+            contentContainerStyle={styles.messageContent}
+            showsVerticalScrollIndicator={true}
+          >
+            <Text style={styles.message}>{message}</Text>
+          </ScrollView>
+
           <TouchableOpacity 
             style={styles.button} 
-            onPress={onClose}
+            onPress={handleAcknowledge}
             activeOpacity={0.8}
           >
             <Text style={styles.buttonText}>Acknowledge</Text>
@@ -57,12 +75,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   container: {
-    backgroundColor: '#0A1128', 
+    backgroundColor: '#0A1128',
     borderRadius: 20,
-    width: width * 0.85,
+    width: width * 0.88,
+    maxHeight: '85%',
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 153, 51, 0.3)', 
+    borderColor: 'rgba(255, 153, 51, 0.3)',
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 5 },
@@ -71,32 +90,44 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 18,
   },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 153, 51, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+  titleBlock: {
+    flex: 1,
+    paddingRight: 12,
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  subject: {
+    fontSize: 16,
+    color: '#F3F4F6',
+    lineHeight: 22,
+  },
+  closeButton: {
+    padding: 6,
+    borderRadius: 18,
+  },
+  messageContainer: {
     flex: 1,
+    marginBottom: 24,
+    maxHeight: 320,
+  },
+  messageContent: {
+    paddingRight: 4,
   },
   message: {
     fontSize: 16,
     color: '#E0E0E0',
     lineHeight: 24,
-    marginBottom: 30,
   },
   button: {
-    backgroundColor: '#FF9933', 
+    backgroundColor: '#FF9933',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
