@@ -10,18 +10,19 @@ const getNotifications = () => {
   }
 };
 
-export async function scheduleLocalNotification(title: string, body: string) {
+export async function scheduleLocalNotification(title: string, previewText: string, data: Record<string, any> = {}) {
   const Notifications = getNotifications();
   if (!Notifications) return;
 
   await Notifications.scheduleNotificationAsync({
     content: {
       title,
-      body,
+      body: previewText,
+      data,
       sound: true,
       priority: 'high',
     },
-    trigger: null, 
+    trigger: null,
   });
 }
 

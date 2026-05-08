@@ -5,14 +5,90 @@ import { useEffect, useRef, useState } from 'react';
 import { syncStudentData } from '../services/api';
 
 const LOCATION_TASK_NAME = 'background-location-task';
+const ONE_HOUR = 60 * 60 * 1000;
+const TIMELINE_MAX_ENTRIES = 48;
+const TIMELINE_KEY_PREFIX = 'locationTimeline:';
+
+export interface LocationTimelineEntry {
+  id: string;
+  timestamp: string;
+  latitude: number;
+  longitude: number;
+  placeName?: string;
+}
+
+const getTimelineStorageKey = (dbId: string) => `${TIMELINE_KEY_PREFIX}${dbId}`;
+
+const loadTimelineFromStorage = async (dbId: string) => {
+  try {
+    const raw = await AsyncStorage.getItem(getTimelineStorageKey(dbId));
+    if (!raw) return [] as LocationTimelineEntry[];
+    const parsed = JSON.parse(raw) as LocationTimelineEntry[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [] as LocationTimelineEntry[];
+  }
+};
+
+const persistTimelineEntry = async (
+  dbId: string,
+  coords: Location.LocationObjectCoords,
+  existingTimeline: LocationTimelineEntry[] = []
+) => {
+  try {
+    const storageKey = getTimelineStorageKey(dbId);
+    const now = Date.now();
+    const lastTimestamp = existingTimeline.length
+      ? new Date(existingTimeline[0].timestamp).getTime()
+      : 0;
+
+    if (now - lastTimestamp < ONE_HOUR) {
+      return existingTimeline;
+    }
+
+    // Get place name using reverse geocoding
+    let placeName = 'Unknown location';
+    try {
+      const geocodeResult = await (Location as any).reverseGeocodeAsync({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      });
+      if (geocodeResult.length > 0) {
+        const place = geocodeResult[0];
+        const parts = [place.name, place.street, place.city, place.region, place.country].filter(Boolean);
+        placeName = parts.slice(0, 2).join(', ') || 'Unknown location';
+      }
+    } catch (error) {
+      console.warn('Reverse geocoding failed:', error);
+      // Fallback to formatted coordinates
+      placeName = `${coords.latitude.toFixed(4)}°N, ${coords.longitude.toFixed(4)}°E`;
+    }
+
+    const entry: LocationTimelineEntry = {
+      id: `${now}`,
+      timestamp: new Date(now).toISOString(),
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      placeName,
+    };
+
+    const nextTimeline = [entry, ...existingTimeline].slice(0, TIMELINE_MAX_ENTRIES);
+    await AsyncStorage.setItem(storageKey, JSON.stringify(nextTimeline));
+    return nextTimeline;
+  } catch {
+    return existingTimeline;
+  }
+};
 
 export const useLocation = () => {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
-  
+  const [timeline, setTimeline] = useState<LocationTimelineEntry[]>([]);
+
   const lastSyncTime = useRef<number>(0);
   const dbIdRef = useRef<string | null>(null);
+  const timelineRef = useRef<LocationTimelineEntry[]>([]);
   const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
   const startContinuousSharing = async (dbId: string) => {
@@ -60,9 +136,14 @@ export const useLocation = () => {
       try {
         const role = await AsyncStorage.getItem('userRole');
         const dbId = await AsyncStorage.getItem('userDbId');
-        
+
         if (role !== 'student') return;
-        if (dbId) dbIdRef.current = dbId;
+        if (dbId) {
+          dbIdRef.current = dbId;
+          const storedTimeline = await loadTimelineFromStorage(dbId);
+          timelineRef.current = storedTimeline;
+          setTimeline(storedTimeline);
+        }
 
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
@@ -73,11 +154,17 @@ export const useLocation = () => {
         let current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         setLocation(current);
 
+        if (dbId && current?.coords) {
+          const updatedTimeline = await persistTimelineEntry(dbId, current.coords, timelineRef.current);
+          timelineRef.current = updatedTimeline;
+          setTimeline(updatedTimeline);
+        }
+
         watchSubscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.Balanced,
             distanceInterval: 10,
-            timeInterval: 60000, 
+            timeInterval: 60000,
           },
           async (newLocation) => {
             setLocation(newLocation);
@@ -97,6 +184,16 @@ export const useLocation = () => {
 
               if (success) lastSyncTime.current = now;
             }
+
+            if (dbIdRef.current) {
+              const updatedTimeline = await persistTimelineEntry(
+                dbIdRef.current,
+                newLocation.coords,
+                timelineRef.current
+              );
+              timelineRef.current = updatedTimeline;
+              setTimeline(updatedTimeline);
+            }
           }
         );
       } catch (err) {
@@ -110,5 +207,5 @@ export const useLocation = () => {
     };
   }, []);
 
-  return { location, errorMsg, isSharing, startContinuousSharing, stopContinuousSharing };
+  return { location, errorMsg, isSharing, timeline, startContinuousSharing, stopContinuousSharing };
 };

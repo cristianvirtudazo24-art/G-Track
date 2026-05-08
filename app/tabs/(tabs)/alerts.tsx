@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, DeviceEventEmitter, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '../../../constants/theme';
 import { getStudentNotifications, sendStudentMessage } from '../../../services/api';
+import { normalizeHtml } from '../../../utils/helpers';
 
 interface AlertItem {
   id: string;
@@ -102,13 +103,15 @@ export default function AlertsScreen() {
         item.target !== 'admin'
       );
 
-      const mappedAlerts = broadcastData.map((item: any) => ({
-        id: String(item.id),
-        title: item.title || ALERT_CONFIG[item.type]?.defaultTitle || 'Admin Broadcast',
-        body: item.text || item.message || 'No message content',
-        time: formatTime(item.timestamp || item.created_at),
-        type: item.type || 'info'
-      }));
+      const mappedAlerts = broadcastData.map((item: any) => {
+        return {
+          id: String(item.id),
+          title: normalizeHtml(item.subject || ALERT_CONFIG[item.type]?.defaultTitle || 'Broadcast Notification'),
+          body: normalizeHtml(item.message || item.text || ''),
+          time: formatTime(item.timestamp || item.created_at),
+          type: item.type || 'info',
+        };
+      });
 
       setAlerts(mappedAlerts);
 

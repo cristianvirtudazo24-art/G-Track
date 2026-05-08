@@ -32,6 +32,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="timeline"
+        options={{
+          title: 'Timeline',
+          tabBarIcon: ({ color }) => <Ionicons name="time" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
