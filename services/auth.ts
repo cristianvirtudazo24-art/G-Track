@@ -6,15 +6,22 @@ const authClient = axios.create({
   timeout: API_TIMEOUT,
 });
 
-export const login = async (email: string, pass: string, role: 'student' | 'admin', studentId?: string) => {
+export const login = async (identifier: string, pass: string, role: 'student' | 'admin', studentId?: string) => {
   try {
     const endpoint = role === 'student' ? '/student/login' : '/login';
 
-    const response = await authClient.post(endpoint, {
-      ...(role === 'admin' ? { email } : { student_id: studentId }),
+    const payload: any = {
       password: pass,
       role
-    });
+    };
+
+    if (role === 'admin') {
+      payload.staff_id = identifier;
+    } else {
+      payload.student_id = studentId;
+    }
+
+    const response = await authClient.post(endpoint, payload);
 
     if (response.data.message === 'Login successful' || response.data.success || response.data.student || response.data.user) {
       return {

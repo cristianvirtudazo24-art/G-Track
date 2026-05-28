@@ -13,7 +13,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const { startContinuousSharing } = useLocation();
 
-  const [email, setEmail] = useState('');
+  const [adminId, setAdminId] = useState('');
   const [password, setPassword] = useState('');
   const [studentId, setStudentId] = useState('');
   const [role, setRole] = useState<'student' | 'admin'>('student');
@@ -21,16 +21,16 @@ export default function LoginScreen() {
 
   const handleSignIn = async () => {
     const isStudent = role === 'student';
-    const identifier = isStudent ? studentId : email;
+    const identifier = isStudent ? studentId : adminId;
 
     if (!identifier || !password) {
-      Alert.alert("Error", `Please fill in your ${isStudent ? 'Student ID' : 'Email'} and Password`);
+      Alert.alert("Error", `Please fill in your ${isStudent ? 'Student ID' : 'Staff ID'} and Password`);
       return;
     }
 
     try {
       const response: any = await login(
-        isStudent ? "" : email, 
+        isStudent ? "" : adminId, 
         password, 
         role, 
         isStudent ? studentId : undefined
@@ -102,14 +102,13 @@ export default function LoginScreen() {
 
           {role === 'admin' ? (
             <>
-              <Text style={styles.label}>Email / Username</Text>
+              <Text style={styles.label}>Staff ID</Text>
               <TextInput
                 style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Enter email"
+                value={adminId}
+                onChangeText={setAdminId}
+                placeholder="Enter Staff ID"
                 autoCapitalize="none"
-                keyboardType="email-address"
               />
             </>
           ) : (
