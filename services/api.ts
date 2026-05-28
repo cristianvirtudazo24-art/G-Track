@@ -207,6 +207,8 @@ export const uploadEmergencyVideo = async (payload: {
   }
 };
 
+//Start for the admin api calls and function
+
 export const sendBlackoutAlert = async (payload: {
   studentId: string;
   battery: number;
