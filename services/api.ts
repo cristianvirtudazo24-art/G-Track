@@ -61,6 +61,16 @@ export const getStudentStatus = async (studentId: string | number) => {
   }
 };
 
+export const getAdmins = async () => {
+  try {
+    const response = await apiClient.get('/admins');
+    return response.data?.admins || response.data || [];
+  } catch (error) {
+    console.error("❌ API Error: Fetch Admin List Failed", error);
+    return [];
+  }
+};
+
 export const syncStudentData = async (payload: {
   studentId: string | number;
   latitude: number;
@@ -246,13 +256,16 @@ export const sendAnnouncement = async (payload: {
   }
 };
 
-export const sendStudentMessage = async (studentId: string | number, message: string) => {
+export const sendStudentMessage = async (studentId: string | number, message: string, adminId?: string) => {
   try {
-    const response = await apiClient.post('/notifications/send', {
+    const payload: any = {
       student_id: studentId,
       target: 'student_message',
       message,
-    });
+    };
+    if (adminId) payload.admin_id = adminId;
+
+    const response = await apiClient.post('/notifications/send', payload);
     return response.data;
   } catch (error) {
     console.error("❌ API Error: Sending Student Message Failed", error);

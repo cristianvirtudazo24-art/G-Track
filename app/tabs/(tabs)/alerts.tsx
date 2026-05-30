@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, DeviceEventEmitter, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '../../../constants/theme';
-import { getStudentNotifications, sendStudentMessage } from '../../../services/api';
+import { getAdmins, getStudentNotifications, sendStudentMessage } from '../../../services/api';
 import { normalizeHtml } from '../../../utils/helpers';
 
 interface AlertItem {
@@ -19,6 +19,22 @@ interface MessageItem {
   sender_type: 'student' | 'admin';
   message: string;
   created_at: string;
+  timestamp?: number;
+  adminId?: string;
+}
+
+interface AdminContact {
+  id: string;
+  name: string;
+  email?: string;
+}
+
+interface AdminThread {
+  id: string;
+  name: string;
+  lastMessage: string;
+  updatedAt: number;
+  messages: MessageItem[];
 }
 
 const ALERT_CONFIG: Record<string, { color: string; bg: string; icon: string; defaultTitle: string }> = {
@@ -33,6 +49,9 @@ export default function AlertsScreen() {
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [adminList, setAdminList] = useState<AdminContact[]>([]);
+  const [adminThreads, setAdminThreads] = useState<AdminThread[]>([]);
+  const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null);
   const [readAlertIds, setReadAlertIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -79,11 +98,53 @@ export default function AlertsScreen() {
         return;
       }
 
-      const alertsRaw = await getStudentNotifications(dbId);
+      const [alertsRaw, adminsRaw] = await Promise.all([getStudentNotifications(dbId), getAdmins()]);
 
       const dataArray = Array.isArray(alertsRaw)
         ? alertsRaw
         : (alertsRaw?.notifications || alertsRaw?.data || []);
+
+      // Parse admin list - handle multiple response formats
+      let adminContacts: AdminContact[] = [];
+      if (Array.isArray(adminsRaw)) {
+        adminContacts = adminsRaw
+          .map((item: any) => ({
+            id: String(item.id ?? item.admin_id ?? item.staff_id ?? item.sender_id ?? item.user_id ?? item.userId),
+            name: item.name || item.full_name || item.admin_name || item.sender_name || item.username || item.email || 'Admin',
+            email: item.email,
+          }))
+          .filter((item: any) => item.id);
+      } else if (adminsRaw?.admins && Array.isArray(adminsRaw.admins)) {
+        adminContacts = adminsRaw.admins
+          .map((item: any) => ({
+            id: String(item.id ?? item.admin_id ?? item.staff_id ?? item.sender_id ?? item.user_id ?? item.userId),
+            name: item.name || item.full_name || item.admin_name || item.sender_name || item.username || item.email || 'Admin',
+            email: item.email,
+          }))
+          .filter((item: any) => item.id);
+      } else if (adminsRaw?.data && Array.isArray(adminsRaw.data)) {
+        adminContacts = adminsRaw.data
+          .map((item: any) => ({
+            id: String(item.id ?? item.admin_id ?? item.staff_id ?? item.sender_id ?? item.user_id ?? item.userId),
+            name: item.name || item.full_name || item.admin_name || item.sender_name || item.username || item.email || 'Admin',
+            email: item.email,
+          }))
+          .filter((item: any) => item.id);
+      }
+
+      console.log("📋 Admin List Loaded:", adminContacts.length, "admins - Data:", adminsRaw);
+      setAdminList(adminContacts);
+
+      const getNotificationStudentId = (item: any) =>
+        item.student_id ?? item.studentId ?? item.user_id ?? item.userId ?? item.receiver_id ?? item.recipient_id ?? item.student?.id ?? item.student?.student_id;
+
+      const isForCurrentStudent = (item: any) => {
+        const itemStudentId = getNotificationStudentId(item);
+        if (itemStudentId === undefined || itemStudentId === null || itemStudentId === '') {
+          return true;
+        }
+        return String(itemStudentId) === String(dbId);
+      };
 
       const isMessageItem = (item: any) =>
         item.type === 'admin_reply' ||
@@ -94,7 +155,7 @@ export default function AlertsScreen() {
         item.sender_type === 'student' ||
         item.sender === 'student';
 
-      const messageData = dataArray.filter(isMessageItem);
+      const messageData = dataArray.filter((item: any) => isMessageItem(item) && isForCurrentStudent(item));
       const broadcastData = dataArray.filter((item: any) =>
         !messageData.includes(item) &&
         item.sender_type !== 'student' &&
@@ -115,14 +176,80 @@ export default function AlertsScreen() {
 
       setAlerts(mappedAlerts);
 
-      const mappedMsgs = messageData.map((item: any) => ({
-        id: String(item.id),
-        sender_type: item.sender_type || item.sender || 'admin',
-        message: item.message || item.text || '',
-        created_at: formatTime(item.created_at || new Date().toISOString())
-      }));
+      const getAdminId = (item: any) => {
+        return (
+          item.admin_id ??
+          item.staff_id ??
+          item.sender_id ??
+          item.sender?.id ??
+          item.sender ??
+          item.admin?.id ??
+          'admin-default'
+        );
+      };
+
+      const getAdminName = (item: any) => {
+        return (
+          item.admin_name ||
+          item.sender_name ||
+          item.sender?.name ||
+          item.admin?.name ||
+          'School Admin'
+        );
+      };
+
+      const mappedMsgs = messageData.map((item: any) => {
+        const itemTimestamp = item.created_at || item.timestamp || new Date().toISOString();
+        const parsedTimestamp = new Date(itemTimestamp).getTime();
+        return {
+          id: String(item.id),
+          sender_type: item.sender_type || item.sender || 'admin',
+          message: item.message || item.text || '',
+          created_at: formatTime(itemTimestamp),
+          timestamp: parsedTimestamp,
+          adminId: String(getAdminId(item)),
+          adminName: getAdminName(item),
+        } as any;
+      });
 
       setMessages(mappedMsgs.reverse());
+
+      const threadMap = new Map<string, AdminThread>();
+      mappedMsgs.forEach((message: any) => {
+        const threadId = String(message.adminId || 'admin-default');
+        const threadName = message.adminName || 'School Admin';
+
+        if (!threadMap.has(threadId)) {
+          threadMap.set(threadId, {
+            id: threadId,
+            name: threadName,
+            lastMessage: message.message,
+            updatedAt: message.timestamp || Date.now(),
+            messages: [message],
+          });
+        } else {
+          const thread = threadMap.get(threadId)!;
+          thread.messages.push(message);
+          if ((message.timestamp || 0) > thread.updatedAt) {
+            thread.updatedAt = message.timestamp || 0;
+            thread.lastMessage = message.message;
+          }
+        }
+      });
+
+      const threads = Array.from(threadMap.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+
+      if (threads.length === 0) {
+        threads.push({
+          id: 'admin-default',
+          name: 'School Admin',
+          lastMessage: 'Start a new conversation',
+          updatedAt: Date.now(),
+          messages: [],
+        });
+      }
+
+      setAdminThreads(threads);
 
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -163,7 +290,11 @@ export default function AlertsScreen() {
         return;
       }
 
-      const res = await sendStudentMessage(dbId, replyText.trim());
+      const res = await sendStudentMessage(
+        dbId,
+        replyText.trim(),
+        selectedAdminId && selectedAdminId !== 'admin-default' ? selectedAdminId : undefined
+      );
       if (res?.success !== false) {
         setReplyText('');
         fetchData();
@@ -182,6 +313,14 @@ export default function AlertsScreen() {
     const isRead = readAlertIds.includes(a.id);
     return activeSubTab === 'read' ? isRead : !isRead;
   });
+
+  const selectedAdminThread = adminThreads.find(thread => thread.id === selectedAdminId);
+  const selectedAdminFromList = adminList.find(admin => admin.id === selectedAdminId);
+  
+  const selectedAdminName = selectedAdminFromList?.name || selectedAdminThread?.name || 'Admin';
+  const selectedAdminMessages = adminList.length > 0
+    ? messages.filter(msg => String(msg.adminId) === String(selectedAdminId))
+    : (selectedAdminThread?.messages || []);
 
   if (loading && !refreshing) {
     return (
@@ -210,7 +349,10 @@ export default function AlertsScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.mainTabBtn, activeTab === 'messages' && styles.mainTabBtnActive]}
-            onPress={() => setActiveTab('messages')}
+            onPress={() => {
+              setActiveTab('messages');
+              setSelectedAdminId(null);
+            }}
           >
             <Text style={[styles.mainTabText, activeTab === 'messages' && styles.mainTabTextActive]}>Messages</Text>
           </TouchableOpacity>
@@ -270,54 +412,110 @@ export default function AlertsScreen() {
         </View>
       ) : (
         <View style={styles.chatWrapper}>
-          <FlatList
-            data={messages}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.chatList}
-            showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                No messages yet. Send a query below.
-              </Text>
-            }
-            renderItem={({ item }) => {
-              const isStudent = item.sender_type === 'student';
-              return (
-                <View style={[styles.bubbleWrap, isStudent ? styles.bubbleRight : styles.bubbleLeft]}>
-                  <View style={[styles.bubble, isStudent ? styles.studentBubble : styles.adminBubble]}>
-                    <Text style={[styles.bubbleText, isStudent ? styles.studentText : styles.adminText]}>
-                      {item.message}
-                    </Text>
-                  </View>
-                  <Text style={[styles.bubbleTime, isStudent ? { textAlign: 'right', marginTop: 4 } : { textAlign: 'left', marginTop: 4 }]}>
-                    {item.created_at}
-                  </Text>
-                </View>
-              );
-            }}
-          />
-          <View style={styles.inputArea}>
-            <TextInput
-              style={styles.chatInput}
-              placeholder="Type a message..."
-              placeholderTextColor={Colors.text.muted}
-              value={replyText}
-              onChangeText={setReplyText}
-              multiline
-            />
-            <TouchableOpacity
-              style={[styles.sendBtn, !replyText.trim() && { opacity: 0.5 }]}
-              onPress={handleSendReply}
-              disabled={sending || !replyText.trim()}
-            >
-              {sending ? (
-                <ActivityIndicator size="small" color="#fff" />
+          {!selectedAdminId ? (
+            <View style={styles.threadListContainer}>
+              <Text style={styles.threadListHeading}>Choose an admin to message</Text>
+              {adminList.length > 0 ? (
+                <FlatList
+                  data={adminList}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.threadList}
+                  showsVerticalScrollIndicator={false}
+                  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
+                  ListEmptyComponent={<Text style={styles.emptyText}>No admins available yet.</Text>}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.threadCard}
+                      onPress={() => setSelectedAdminId(item.id)}
+                    >
+                      <View style={styles.threadInfo}>
+                        <Text style={styles.threadName}>{item.name}</Text>
+                        <Text style={styles.threadLast}>Tap to start a chat</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
               ) : (
-                <MaterialCommunityIcons name="send" size={20} color="#fff" />
+                <FlatList
+                  data={adminThreads}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.threadList}
+                  showsVerticalScrollIndicator={false}
+                  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
+                  ListEmptyComponent={<Text style={styles.emptyText}>No admin conversations available yet.</Text>}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.threadCard}
+                      onPress={() => setSelectedAdminId(item.id)}
+                    >
+                      <View style={styles.threadInfo}>
+                        <Text style={styles.threadName}>{item.name}</Text>
+                        <Text style={styles.threadLast}>{item.lastMessage}</Text>
+                      </View>
+                      <Text style={styles.threadTime}>{item.updatedAt ? formatTime(new Date(item.updatedAt).toISOString()) : ''}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
               )}
-            </TouchableOpacity>
-          </View>
+            </View>
+          ) : (
+            <>
+              <View style={styles.chatHeader}>
+                <TouchableOpacity onPress={() => setSelectedAdminId(null)} style={styles.chatBackButton}>
+                  <MaterialCommunityIcons name="arrow-left" size={22} color={Colors.text.primary} />
+                </TouchableOpacity>
+                <Text style={styles.chatHeaderTitle}>{selectedAdminName || 'Admin Chat'}</Text>
+              </View>
+              <FlatList
+                data={selectedAdminMessages}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.chatList}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
+                ListEmptyComponent={
+                  <Text style={styles.emptyText}>
+                    No conversation yet. Send your first message.
+                  </Text>
+                }
+                renderItem={({ item }) => {
+                  const isStudent = item.sender_type === 'student';
+                  return (
+                    <View style={[styles.bubbleWrap, isStudent ? styles.bubbleRight : styles.bubbleLeft]}>
+                      <View style={[styles.bubble, isStudent ? styles.studentBubble : styles.adminBubble]}>
+                        <Text style={[styles.bubbleText, isStudent ? styles.studentText : styles.adminText]}>
+                          {item.message}
+                        </Text>
+                      </View>
+                      <Text style={[styles.bubbleTime, isStudent ? { textAlign: 'right', marginTop: 4 } : { textAlign: 'left', marginTop: 4 }]}>
+                        {item.created_at}
+                      </Text>
+                    </View>
+                  );
+                }}
+              />
+              <View style={styles.inputArea}>
+                <TextInput
+                  style={styles.chatInput}
+                  placeholder="Type a message..."
+                  placeholderTextColor={Colors.text.muted}
+                  value={replyText}
+                  onChangeText={setReplyText}
+                  multiline
+                />
+                <TouchableOpacity
+                  style={[styles.sendBtn, !replyText.trim() && { opacity: 0.5 }]}
+                  onPress={handleSendReply}
+                  disabled={sending || !replyText.trim()}
+                >
+                  {sending ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <MaterialCommunityIcons name="send" size={20} color="#fff" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </View>
       )}
 
@@ -433,6 +631,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   list: { padding: Spacing.lg, paddingBottom: Spacing.xxxl },
+  threadList: { padding: Spacing.lg, paddingBottom: Spacing.xxxl },
   alertCard: {
     backgroundColor: Colors.background.primary,
     borderRadius: BorderRadius.xl,
@@ -493,6 +692,61 @@ const styles = StyleSheet.create({
   chatList: {
     padding: Spacing.lg,
     paddingBottom: 120, // Increased to ensure space for input area when keyboard appears
+  },
+  threadListContainer: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+  },
+  threadListHeading: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.text.primary,
+    marginBottom: Spacing.md,
+  },
+  threadCard: {
+    backgroundColor: Colors.background.primary,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    ...Shadows.md,
+  },
+  threadInfo: {
+    marginBottom: Spacing.xs,
+  },
+  threadName: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.text.primary,
+  },
+  threadLast: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.text.secondary,
+    marginTop: Spacing.xs,
+    lineHeight: 20,
+  },
+  threadTime: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.text.muted,
+    textAlign: 'right',
+  },
+  chatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.background.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.slate[100],
+  },
+  chatBackButton: {
+    marginRight: Spacing.md,
+    padding: Spacing.sm,
+  },
+  chatHeaderTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.text.primary,
   },
   bubbleWrap: { marginBottom: Spacing.lg, maxWidth: '85%' },
   bubbleLeft: { alignSelf: 'flex-start' },

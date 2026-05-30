@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { BorderRadius, Colors, Shadows, Spacing, Typography } from '../../constants/theme';
+import { Colors, Shadows, Spacing, Typography } from '../../constants/theme';
 import { useLocation } from '../../hooks/useLocation';
 import { login } from '../../services/auth';
 
@@ -78,11 +78,14 @@ export default function LoginScreen() {
               resizeMode="contain"
             />
           </View>
-          <Text style={styles.appTitle}>G!Track</Text>
-          <Text style={styles.appSubtitle}>Student Safety & Tracking System</Text>
+          <Text style={styles.appTitle}>G!track</Text>
+          <Text style={styles.appSubtitle}>Authentication Portal</Text>
         </View>
 
         <View style={styles.formCard}>
+          <Text style={styles.formTitle}>{role === 'admin' ? 'Admin Authentication Portal' : 'Student Authentication Portal'}</Text>
+          <Text style={styles.formSubtitle}>Enter your credentials to access your account.</Text>
+
           <View style={styles.roleSelector}>
             <TouchableOpacity 
               style={[styles.roleButton, role === 'student' && styles.roleButtonActive]} 
@@ -98,8 +101,6 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.welcomeText}>{role === 'student' ? 'Student Sign In' : 'Admin Sign In'}</Text>
-
           {role === 'admin' ? (
             <>
               <Text style={styles.label}>Staff ID</Text>
@@ -107,7 +108,8 @@ export default function LoginScreen() {
                 style={styles.input}
                 value={adminId}
                 onChangeText={setAdminId}
-                placeholder="Enter Staff ID"
+                placeholder="Enter your Staff ID"
+                placeholderTextColor="#9CA3AF"
                 autoCapitalize="none"
               />
             </>
@@ -118,7 +120,8 @@ export default function LoginScreen() {
                 style={styles.input}
                 value={studentId}
                 onChangeText={setStudentId}
-                placeholder="Enter Student ID"
+                placeholder="Enter your Student ID"
+                placeholderTextColor="#9CA3AF"
                 autoCapitalize="characters"
               />
             </>
@@ -131,7 +134,8 @@ export default function LoginScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
-              placeholder="Enter password"
+              placeholder="Enter your password"
+              placeholderTextColor="#9CA3AF"
               autoCapitalize="none"
             />
             <TouchableOpacity
@@ -147,10 +151,12 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity style={styles.button} onPress={handleSignIn}>
-            <Text style={styles.buttonText}>Sign In</Text>
+            <Text style={styles.buttonText}>Login</Text>
           </TouchableOpacity>
 
-          <Text style={styles.devNote}>Dev Mode: Location sync starts after login</Text>
+          <TouchableOpacity style={styles.forgotButton} activeOpacity={0.7}>
+            <Text style={styles.forgotText}>Forgot Password?</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -158,119 +164,136 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.primary },
-  scrollContainer: { flexGrow: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, justifyContent: 'center' },
-  header: { alignItems: 'center', marginBottom: Spacing.xl },
+  container: { flex: 1, backgroundColor: '#EAF4FF' },
+  scrollContainer: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 40, paddingBottom: 40, justifyContent: 'center' },
+  header: { alignItems: 'center', marginBottom: 24 },
   logoWrapper: {
-    width: Math.min(width * 0.3, 100), // Responsive logo size
-    height: Math.min(width * 0.3, 100),
-    borderRadius: BorderRadius.xxl,
-    backgroundColor: Colors.background.primary,
+    width: Math.min(width * 0.28, 110),
+    height: Math.min(width * 0.28, 110),
+    borderRadius: 28,
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: 18,
     ...Shadows.xl,
   },
-  logoImage: { width: '70%', height: '70%' },
+  logoImage: { width: '72%', height: '72%' },
   appTitle: {
-    color: Colors.text.inverse,
+    color: Colors.primary,
     fontSize: Typography.fontSize.xxxl,
     fontWeight: Typography.fontWeight.extrabold,
-    letterSpacing: 1.5,
-    marginBottom: Spacing.xs,
+    letterSpacing: 0.8,
+    marginBottom: 6,
   },
   appSubtitle: {
-    color: Colors.text.inverse,
+    color: Colors.slate[600],
     fontSize: Typography.fontSize.md,
-    opacity: 0.9,
-    fontWeight: Typography.fontWeight.medium,
     textAlign: 'center',
   },
   formCard: {
-    backgroundColor: Colors.background.primary,
-    borderRadius: BorderRadius.xxl,
-    padding: Spacing.lg,
-    marginHorizontal: Spacing.sm,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    padding: 28,
+    marginHorizontal: 8,
     ...Shadows.lg,
+  },
+  formTitle: {
+    fontSize: Typography.fontSize.xxl,
+    fontWeight: Typography.fontWeight.extrabold,
+    color: Colors.text.primary,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  formSubtitle: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.slate[500],
+    marginBottom: 24,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   roleSelector: {
     flexDirection: 'row',
-    backgroundColor: Colors.slate[100],
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.xs,
-    marginBottom: Spacing.xl,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 999,
+    padding: 4,
+    marginBottom: 24,
   },
   roleButton: {
     flex: 1,
-    paddingVertical: Spacing.md,
+    paddingVertical: 14,
     alignItems: 'center',
-    borderRadius: BorderRadius.lg,
+    borderRadius: 999,
   },
   roleButtonActive: {
-    backgroundColor: Colors.background.primary,
+    backgroundColor: Colors.primary,
     ...Shadows.sm,
   },
   roleButtonText: {
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
-    color: Colors.slate[500],
+    color: Colors.slate[600],
   },
   roleButtonTextActive: {
-    color: Colors.primary,
-  },
-  welcomeText: {
-    fontSize: Typography.fontSize.xl,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.lg,
-    color: Colors.text.primary,
-    textAlign: 'center',
+    color: '#FFFFFF',
   },
   label: {
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
-    color: Colors.text.secondary,
-    marginBottom: Spacing.sm,
+    color: Colors.slate[600],
+    marginBottom: 10,
   },
   input: {
-    borderWidth: 1.5,
-    borderColor: Colors.border.medium,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 18,
     fontSize: Typography.fontSize.md,
     color: Colors.text.primary,
-    backgroundColor: Colors.background.primary,
+    backgroundColor: '#F9FAFB',
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: Colors.border.medium,
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.md,
-    backgroundColor: Colors.background.primary,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 18,
+    marginBottom: 18,
+    backgroundColor: '#F9FAFB',
   },
   passwordInput: {
     flex: 1,
-    padding: Spacing.md,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     fontSize: Typography.fontSize.md,
     color: Colors.text.primary,
   },
   eyeIcon: {
-    padding: Spacing.md,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
   },
   button: {
-    backgroundColor: Colors.secondary,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.primary,
+    paddingVertical: 16,
+    borderRadius: 18,
     alignItems: 'center',
-    marginTop: Spacing.md,
+    marginTop: 8,
     ...Shadows.md,
   },
   buttonText: {
-    color: Colors.text.inverse,
+    color: '#FFFFFF',
     fontWeight: Typography.fontWeight.bold,
     fontSize: Typography.fontSize.lg,
+  },
+  forgotButton: {
+    alignItems: 'center',
+    marginTop: 18,
+  },
+  forgotText: {
+    color: Colors.primary,
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
   },
   devNote: {
     textAlign: 'center',

@@ -59,6 +59,7 @@ export default function HomeScreen() {
       const batteryPercent = Math.round(batteryLevel * 100);
       const signalStrength = getFormattedNetworkInfo();
       await sendBlackoutAlert({ studentId, battery: batteryPercent, signal: signalStrength, message: '' });
+      setCurrentStatus('safe');
     } else {
       // For 'help' type, upload video (which creates the notification) - only notify if video upload succeeds
       if (type === 'help') {
@@ -89,6 +90,7 @@ export default function HomeScreen() {
           if (uploadResult) {
             videoMessage = 'Live Emergency Feed';
             setVideoSent(true);
+            setCurrentStatus('safe');
             console.log('Video uploaded successfully - admin notified');
           } else {
             console.warn('Video upload failed - no notification sent to admin');
@@ -132,7 +134,11 @@ export default function HomeScreen() {
       <StatusSuccessModal
         isVisible={successVisible}
         type={activeType}
-        onClose={() => setSuccessVisible(false)}
+        onClose={() => {
+          setSuccessVisible(false);
+          setActiveType(null);
+          setCurrentStatus('safe');
+        }}
       />
     </>
   );

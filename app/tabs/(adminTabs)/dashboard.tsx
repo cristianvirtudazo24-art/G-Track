@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getAlerts, getRecentLocations, getStudents } from '../../../services/api';
 
 export default function AdminDashboard() {
@@ -13,7 +13,6 @@ export default function AdminDashboard() {
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string>('');
   const [lastUpdatedDate, setLastUpdatedDate] = useState<string>('');
 
-  const { width: windowWidth } = useWindowDimensions();
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
@@ -34,8 +33,9 @@ export default function AdminDashboard() {
       setError("Failed to fetch live data.");
     } finally {
       setLoading(false);
-      setRefreshing(true);
-      setTimeout(() => setRefreshing(false), 500); 
+      if (isRefresh) {
+        setRefreshing(false);
+      }
     }
   }, []);
 
@@ -109,7 +109,7 @@ export default function AdminDashboard() {
             <Text style={[styles.cardNumberLarge, { color: '#DC2626' }]}>{offlineCount}</Text>
             <Text style={styles.cardSubtitle}>Currently offline</Text>
           </View>
-          <View style={styles.cardItem}>
+          <View style={styles.cardItem}> 
             <View style={styles.cardHeader}>
               <View>
                 <Text style={styles.cardTitle}>Latest Update</Text>
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F7FF' },  keyboardAvoid: { flex: 1 },  container: { paddingBottom: 40 },
+  safeArea: { flex: 1, backgroundColor: '#F5F7FF' },  keyboardAvoid: { flex: 1 },  container: { paddingBottom: 40, paddingHorizontal: 16 },
   header: {
     backgroundColor: '#1E2F97',
     paddingTop: 15,
@@ -169,13 +169,15 @@ const styles = StyleSheet.create({
   statIconWrap: { padding: 8, borderRadius: 12, alignSelf: 'flex-start', marginBottom: 10 },
   statNumber: { fontSize: 26, fontWeight: '800', color: '#1E2F97', marginBottom: 2 },
   statLabel: { fontSize: 12, color: '#6B7280', fontWeight: '500' },
-  cardsRow: { flexDirection: 'column', paddingHorizontal: 16, marginTop: 16, marginBottom: 4 },
+  cardsRow: { flexDirection: 'column', marginTop: 16, marginBottom: 4 },
   cardItem: {
     flex: 1,
+    width: '100%',
+    minHeight: 150,
     minWidth: 0,
     backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 16,
+    padding: 18,
     elevation: 2,
     shadowColor: '#1E2F97',
     shadowOffset: { width: 0, height: 2 },
@@ -184,7 +186,7 @@ const styles = StyleSheet.create({
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   iconBadge: { padding: 10, borderRadius: 16 },
-  cardNumberLarge: { fontSize: 32, fontWeight: '800', color: '#111827', marginBottom: 6 },
+  cardNumberLarge: { fontSize: 38, fontWeight: '800', color: '#111827', marginBottom: 8 },
   cardSubtitle: { fontSize: 12, color: '#6B7280', fontWeight: '500' },
   cardTitle: { fontSize: 16, fontWeight: '800', color: '#111827' },
   cardSub: { fontSize: 11, color: '#9CA3AF', marginTop: 1, fontWeight: '500' },
