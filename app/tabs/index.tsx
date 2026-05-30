@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     width: Math.min(width * 0.28, 110),
     height: Math.min(width * 0.28, 110),
     borderRadius: 28,
-    backgroundColor: '#ffffff',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 18,
