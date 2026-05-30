@@ -1,4 +1,4 @@
-export const ADMIN_LAPTOP_IP = '10.150.111.208';
+export const ADMIN_LAPTOP_IP = '192.168.112.88';
 
 export const LARAVEL_PORT = '8007';
 export const API_BASE_URL = `http://${ADMIN_LAPTOP_IP}:${LARAVEL_PORT}/api`;
