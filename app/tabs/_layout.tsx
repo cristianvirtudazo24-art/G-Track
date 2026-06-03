@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Battery from 'expo-battery';
-import Constants from 'expo-constants';
 import { Stack } from 'expo-router';
 import * as TaskManager from 'expo-task-manager';
 import React, { useEffect, useRef, useState } from 'react';
@@ -142,50 +141,40 @@ export default function RootLayout() {
     initializeNotifications();
     const interval = setInterval(pollForAnnouncements, 30000);
 
-    // Only setup notification listeners when not running inside Expo Go,
-    // to avoid expo-notifications limitations in Expo Go causing runtime warnings/errors.
-    let cleanup = () => {};
-    try {
-      if (Constants.appOwnership !== 'expo') {
-        cleanup = setupNotificationListeners(
-          (notification) => {
-            const { title, body, data } = notification.request.content;
-            const payload = data ?? {};
-            const parsed = parseBroadcastMessage(payload.body ?? payload.message ?? body ?? '');
-            const subject = payload.subject ?? title ?? parsed.subject;
-            const finalBody = payload.body ?? payload.message ?? parsed.body;
-            if (isMounted) {
-              setAnnouncement({
-                title: title ?? 'Admin Broadcast',
-                subject,
-                body: finalBody,
-              });
-              const { DeviceEventEmitter } = require('react-native');
-              DeviceEventEmitter.emit('refreshAlerts');
-            }
-          },
-          (response) => {
-            const { title, body, data } = response.notification.request.content;
-            const payload = data ?? {};
-            const parsed = parseBroadcastMessage(payload.body ?? payload.message ?? body ?? '');
-            const subject = payload.subject ?? title ?? parsed.subject;
-            const finalBody = payload.body ?? payload.message ?? parsed.body;
-            if (isMounted) {
-              setAnnouncement({
-                title: title ?? 'Admin Broadcast',
-                subject,
-                body: finalBody,
-              });
-              const { DeviceEventEmitter } = require('react-native');
-              DeviceEventEmitter.emit('refreshAlerts');
-            }
-          }
-        );
+    const cleanup = setupNotificationListeners(
+      (notification) => {
+        const { title, body, data } = notification.request.content;
+        const payload = data ?? {};
+        const parsed = parseBroadcastMessage(payload.body ?? payload.message ?? body ?? '');
+        const subject = payload.subject ?? title ?? parsed.subject;
+        const finalBody = payload.body ?? payload.message ?? parsed.body;
+        if (isMounted) {
+          setAnnouncement({
+            title: title ?? 'Admin Broadcast',
+            subject,
+            body: finalBody,
+          });
+          const { DeviceEventEmitter } = require('react-native');
+          DeviceEventEmitter.emit('refreshAlerts');
+        }
+      },
+      (response) => {
+        const { title, body, data } = response.notification.request.content;
+        const payload = data ?? {};
+        const parsed = parseBroadcastMessage(payload.body ?? payload.message ?? body ?? '');
+        const subject = payload.subject ?? title ?? parsed.subject;
+        const finalBody = payload.body ?? payload.message ?? parsed.body;
+        if (isMounted) {
+          setAnnouncement({
+            title: title ?? 'Admin Broadcast',
+            subject,
+            body: finalBody,
+          });
+          const { DeviceEventEmitter } = require('react-native');
+          DeviceEventEmitter.emit('refreshAlerts');
+        }
       }
-    } catch (err) {
-      // swallow - best-effort notifications only during development
-      cleanup = () => {};
-    }
+    );
 
     return () => {
       isMounted = false;

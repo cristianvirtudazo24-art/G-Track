@@ -4,10 +4,10 @@
  */
 
 // REPLACE with the Admin Team's laptop IP address (e.g., '192.168.1.XX')
-export const ADMIN_LAPTOP_IP = '192.168.112.88';
+export const ADMIN_LAPTOP_IP = '192.168.112.86';
 
 // THE PORT Laravel uses (usually 8000)
-export const LARAVEL_PORT = '8007';
+export const LARAVEL_PORT = '8004';
 export const API_BASE_URL = `http://${ADMIN_LAPTOP_IP}:${LARAVEL_PORT}/api`;
 export const API_TIMEOUT = 8000;
 

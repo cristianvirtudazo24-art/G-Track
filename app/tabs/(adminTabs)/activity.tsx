@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getRecentLocations, getStudents } from '../../../services/api';
 
 export default function AdminActivityScreen() {
@@ -10,6 +10,7 @@ export default function AdminActivityScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -44,12 +45,127 @@ export default function AdminActivityScreen() {
     return locations.find((loc: any) => String(loc.student?.student_id) === String(student.student_id) || String(loc.student?.id) === String(student.id));
   };
 
+  const getStudentLocationHistory = (student: any) => {
+    return locations
+      .filter((loc: any) => String(loc.student?.student_id) === String(student.student_id) || String(loc.student?.id) === String(student.id))
+      .sort((a: any, b: any) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime());
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingCenter}>
         <ActivityIndicator size="large" color="#1E2F97" />
         <Text style={styles.loadingText}>Loading student activity...</Text>
       </View>
+    );
+  }
+
+  const renderStudentDetail = () => {
+    if (!selectedStudent) return null;
+
+    const history = getStudentLocationHistory(selectedStudent);
+    const lastLocation = history[0];
+
+    return (
+      <View style={styles.detailContent}>
+        <Pressable style={styles.backButton} onPress={() => setSelectedStudent(null)}>
+          <MaterialCommunityIcons name="arrow-left" size={18} color="#1E2F97" />
+          <Text style={styles.backButtonText}>Back to Student Activity</Text>
+        </Pressable>
+
+        <View style={styles.detailHeader}>
+          <View>
+            <Text style={styles.detailTitle}>{selectedStudent.name || 'Student Details'}</Text>
+            <Text style={styles.detailSubtitle}>Timeline and student connection details</Text>
+          </View>
+        </View>
+
+        <View style={styles.detailGrid}>
+          <View style={styles.detailCard}>
+            <View style={styles.detailRow}>
+              <View>
+                <Text style={styles.detailLabel}>STUDENT ID</Text>
+                <Text style={styles.detailValue}>{selectedStudent.student_id || selectedStudent.id || 'N/A'}</Text>
+              </View>
+              <View>
+                <Text style={styles.detailLabel}>CLASS</Text>
+                <View style={styles.classBadge}>
+                  <Text style={styles.classBadgeText}>{selectedStudent.class || '—'}</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.detailRow}>
+              <View>
+                <Text style={styles.detailLabel}>GENDER</Text>
+                <Text style={styles.detailValue}>{selectedStudent.gender || '—'}</Text>
+              </View>
+              <View>
+                <Text style={styles.detailLabel}>CONTACT</Text>
+                <Text style={styles.detailLink}>{selectedStudent.contact || selectedStudent.phone || 'N/A'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.detailRow}>
+              <View>
+                <Text style={styles.detailLabel}>BATTERY LEVEL</Text>
+                <View style={styles.batteryPill}>
+                  <Text style={styles.batteryText}>{selectedStudent.battery ?? selectedStudent.battery_level ?? '—'}%</Text>
+                </View>
+              </View>
+              <View>
+                <Text style={styles.detailLabel}>SIGNAL STATUS</Text>
+                <Text style={styles.detailValue}>{selectedStudent.signal || (lastLocation ? lastLocation.signal || '—' : 'No signal')}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.historyCard}>
+          <View style={styles.historyTitleRow}>
+            <MaterialCommunityIcons name="history" size={20} color="#1E2F97" />
+            <Text style={styles.historyTitle}>Location History Logs</Text>
+          </View>
+          <Text style={styles.historySubtitle}>Scroll through previous GPS pings and timeline events.</Text>
+
+          {history.length > 0 ? (
+            history.map((item: any, index: number) => (
+              <View key={String(item.id ?? index)} style={styles.timelineRow}>
+                <View style={styles.timelineMeta}>
+                  <Text style={styles.timelineTime}>{new Date(item.recorded_at).toLocaleString()}</Text>
+                  <Text style={styles.timelineLocation}>{item.address || item.location || 'Unknown location'}</Text>
+                </View>
+                <View style={styles.timelineStatusRow}>
+                  <View style={[styles.statusBadge, { backgroundColor: item.status === 'safe' ? '#DCFCE7' : '#F3F4F6' }]}> 
+                    <View style={[styles.statusDot, { backgroundColor: item.status === 'safe' ? '#059669' : '#9CA3AF' }]} />
+                    <Text style={[styles.statusText, { color: item.status === 'safe' ? '#059669' : '#9CA3AF' }]}>{item.status ? item.status.toUpperCase() : 'STATUS'}</Text>
+                  </View>
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No location history available for this student.</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  if (selectedStudent) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} colors={['#1E2F97']} />
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          {renderStudentDetail()}
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
@@ -102,41 +218,62 @@ export default function AdminActivityScreen() {
           </View>
         ) : null}
 
-        <FlatList
-          data={filteredStudents}
-          keyExtractor={(item) => String(item.student_id ?? item.id)}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text style={styles.emptyText}>No students match your filter.</Text>}
-          renderItem={({ item }) => {
-            const lastLocation = getLastLocation(item);
-            return (
-              <View style={styles.card}>
-                <View style={styles.cardTitleRow}>
-                  <View style={[styles.statusDot, item.status === 'online' ? styles.online : styles.offline]} />
-                  <View>
-                    <Text style={styles.studentName}>{item.name || 'Unknown Student'}</Text>
-                    <Text style={styles.studentMeta}>{item.student_id || 'N/A'} · Class {item.class || '—'}</Text>
-                  </View>
-                </View>
-                <View style={styles.cardBody}>
-                  <View style={styles.cardItem}>
-                    <Text style={styles.cardItemLabel}>Battery</Text>
-                    <Text style={styles.cardItemValue}>{item.battery ?? item.battery_level ?? '—'}%</Text>
-                  </View>
-                  <View style={styles.cardItem}>
-                    <Text style={styles.cardItemLabel}>Signal</Text>
-                    <Text style={styles.cardItemValue}>{item.signal || 'Unknown'}</Text>
-                  </View>
-                </View>
-                <View style={styles.cardFooter}>
-                  <Text style={styles.footerLabel}>Last seen</Text>
-                  <Text style={styles.footerValue}>{lastLocation ? new Date(lastLocation.recorded_at).toLocaleString() : 'No recent update'}</Text>
-                </View>
+        <View style={styles.tableSection}>
+          <View style={styles.tableSectionHeader}>
+            <MaterialCommunityIcons name="pulse" size={20} color="#1E2F97" />
+            <View style={{ marginLeft: 12 }}>
+              <Text style={styles.tableSectionTitle}>Student Activity Table</Text>
+              <Text style={styles.tableSectionSubtitle}>Real-time student connection status and details</Text>
+            </View>
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.tableContainer}>
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Student ID</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1.4 }]}>Name</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 0.9 }]}>Class</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 0.9 }]}>Gender</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 0.9 }]}>Status</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 0.9 }]}>Battery</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>Signal</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>Last Update</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>Contact</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Timeline</Text>
               </View>
-            );
-          }}
-        />
+              {filteredStudents.length > 0 ? (
+                filteredStudents.map((student, index) => {
+                  const lastLocation = getLastLocation(student);
+                  return (
+                    <View key={String(student.student_id ?? student.id ?? index)} style={[styles.tableRow, index % 2 === 0 && styles.tableRowEven]}>
+                      <Text style={[styles.tableCell, { flex: 1 }]} numberOfLines={1}>{student.student_id || student.id || 'N/A'}</Text>
+                      <Text style={[styles.tableCell, { flex: 1.4 }]} numberOfLines={1}>{student.name || 'Unknown'}</Text>
+                      <Text style={[styles.tableCell, { flex: 0.9 }]} numberOfLines={1}>{student.class || '—'}</Text>
+                      <Text style={[styles.tableCell, { flex: 0.9 }]} numberOfLines={1}>{student.gender || '—'}</Text>
+                      <View style={[styles.statusBadge, { flex: 0.9, backgroundColor: student.status === 'online' ? '#DCFCE7' : '#F3F4F6' }]}> 
+                        <View style={[styles.statusDot, { backgroundColor: student.status === 'online' ? '#059669' : '#9CA3AF' }]} />
+                        <Text style={[styles.statusText, { color: student.status === 'online' ? '#059669' : '#9CA3AF' }]}>
+                          {student.status === 'online' ? 'Online' : 'Offline'}
+                        </Text>
+                      </View>
+                      <Text style={[styles.tableCell, { flex: 0.9 }]} numberOfLines={1}>{student.battery ?? student.battery_level ?? '—'}%</Text>
+                      <Text style={[styles.tableCell, { flex: 1.2 }]} numberOfLines={1}>{student.signal || '—'}</Text>
+                      <Text style={[styles.tableCell, { flex: 1.2 }]} numberOfLines={1}>{lastLocation ? new Date(lastLocation.recorded_at).toLocaleString() : 'No update'}</Text>
+                      <Text style={[styles.tableCell, { flex: 1.2 }]} numberOfLines={1}>{student.contact || student.phone || '—'}</Text>
+                      <Pressable style={styles.viewHistoryButton} onPress={() => setSelectedStudent(student)}>
+                        <Text style={styles.viewHistoryButtonText}>View History</Text>
+                      </Pressable>
+                    </View>
+                  );
+                })
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>No students match your filter.</Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -191,32 +328,58 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   errorText: { color: '#fff', marginLeft: 10, flex: 1, fontSize: 13 },
-  list: { paddingBottom: 40, paddingHorizontal: 16 },
-  card: {
+  tableSection: { marginHorizontal: 16, marginTop: 18 },
+  tableSectionHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
+  tableSectionTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
+  tableSectionSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2, fontWeight: '500' },
+  tableContainer: {
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 14,
+    borderRadius: 18,
+    overflow: 'hidden',
     elevation: 2,
     shadowColor: '#1E2F97',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 10,
+    minWidth: 900,
   },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
-  online: { backgroundColor: '#059669' },
-  offline: { backgroundColor: '#9CA3AF' },
-  studentName: { fontSize: 16, fontWeight: '800', color: '#111827' },
-  studentMeta: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-  cardBody: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
-  cardItem: { flex: 1 },
-  cardItemLabel: { fontSize: 11, color: '#9CA3AF', marginBottom: 6, fontWeight: '700' },
-  cardItemValue: { fontSize: 15, color: '#111827', fontWeight: '700' },
-  cardFooter: { borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 12 },
-  footerLabel: { fontSize: 11, color: '#9CA3AF', marginBottom: 4 },
-  footerValue: { fontSize: 13, color: '#111827', fontWeight: '700' },
-  emptyText: { color: '#9CA3AF', fontSize: 15, textAlign: 'center', marginTop: 24 },
+  tableHeader: { flexDirection: 'row', backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingHorizontal: 12, paddingVertical: 12 },
+  tableHeaderCell: { fontSize: 12, fontWeight: '700', color: '#1F2937', textAlign: 'left', paddingHorizontal: 6 },
+  tableRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', alignItems: 'center' },
+  tableRowEven: { backgroundColor: '#FAFBFC' },
+  tableCell: { fontSize: 12, color: '#374151', fontWeight: '500', paddingHorizontal: 6 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' },
+  statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
+  statusText: { fontSize: 11, fontWeight: '600' },
+  emptyState: { paddingVertical: 40, justifyContent: 'center', alignItems: 'center' },
+  emptyStateText: { fontSize: 14, color: '#9CA3AF', fontWeight: '500' },
+  backButton: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 18, paddingVertical: 8, paddingHorizontal: 14, backgroundColor: '#EFF6FF', borderRadius: 16 },
+  backButtonText: { color: '#1E2F97', marginLeft: 8, fontWeight: '700' },
+  detailContent: { paddingBottom: 40 },
+  detailHeader: { marginHorizontal: 16, marginBottom: 18 },
+  detailTitle: { fontSize: 26, fontWeight: '800', color: '#111827' },
+  detailSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 6 },
+  detailGrid: { marginHorizontal: 16 },
+  detailCard: { backgroundColor: '#fff', borderRadius: 22, padding: 18, elevation: 2, shadowColor: '#1E2F97', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, marginBottom: 18 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 16 },
+  detailLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '700', marginBottom: 6 },
+  detailValue: { fontSize: 15, color: '#111827', fontWeight: '700' },
+  detailLink: { fontSize: 15, color: '#1E40AF', fontWeight: '700' },
+  classBadge: { backgroundColor: '#EFF6FF', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, alignSelf: 'flex-start' },
+  classBadgeText: { color: '#1E40AF', fontWeight: '800' },
+  batteryPill: { backgroundColor: '#ECFDF5', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, alignSelf: 'flex-start' },
+  batteryText: { color: '#15803D', fontWeight: '800' },
+  historyCard: { backgroundColor: '#fff', borderRadius: 22, padding: 18, elevation: 2, shadowColor: '#1E2F97', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, marginHorizontal: 16 },
+  historyTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  historyTitle: { fontSize: 16, fontWeight: '800', color: '#111827', marginLeft: 10 },
+  historySubtitle: { fontSize: 13, color: '#6B7280', marginBottom: 14 },
+  timelineRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#F3F4F6', alignItems: 'center' },
+  timelineMeta: { flex: 1, marginRight: 12 },
+  timelineTime: { fontSize: 12, color: '#6B7280', fontWeight: '700', marginBottom: 4 },
+  timelineLocation: { fontSize: 14, color: '#111827', fontWeight: '600' },
+  timelineStatusRow: { alignItems: 'flex-end' },
+  viewHistoryButton: { backgroundColor: '#1E40AF', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, minWidth: 100, alignItems: 'center' },
+  viewHistoryButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7FF' },
   loadingText: { marginTop: 12, color: '#1E2F97', fontSize: 15, fontWeight: '600' },
 });
