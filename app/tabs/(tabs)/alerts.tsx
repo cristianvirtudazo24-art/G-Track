@@ -19,6 +19,26 @@ interface MessageItem {
   sender_type: 'student' | 'admin';
   message: string;
   created_at: string;
+<<<<<<< Updated upstream
+=======
+  timestamp?: number;
+  adminId?: string;
+  rawItem?: any;
+}
+
+interface AdminContact {
+  id: string;
+  name: string;
+  email?: string;
+}
+
+interface AdminThread {
+  id: string;
+  name: string;
+  lastMessage: string;
+  updatedAt: number;
+  messages: MessageItem[];
+>>>>>>> Stashed changes
 }
 
 const ALERT_CONFIG: Record<string, { color: string; bg: string; icon: string; defaultTitle: string }> = {
@@ -41,13 +61,13 @@ export default function AlertsScreen() {
   const [replyText, setReplyText] = useState('');
   const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
 
-  const formatTime = (ts: string) => {
-    if (!ts) return '';
+  const formatTime = (time: string) => {
+    if (!time) return '';
     try {
-      const date = new Date(ts);
+      const date = new Date(time);
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch {
-      return ts;
+      return time;
     }
   };
 
@@ -85,6 +105,52 @@ export default function AlertsScreen() {
         ? alertsRaw
         : (alertsRaw?.notifications || alertsRaw?.data || []);
 
+<<<<<<< Updated upstream
+=======
+      // Parse admin list - handle multiple response formats
+      let adminContacts: AdminContact[] = [];
+      if (Array.isArray(adminsRaw)) {
+        adminContacts = adminsRaw
+          .map((item: any) => ({
+            id: String(item.id ?? item.admin_id ?? item.staff_id ?? item.sender_id ?? item.user_id ?? item.userId),
+            name: item.name || item.full_name || item.admin_name || item.sender_name || item.username || item.email || 'Admin',
+            email: item.email,
+          }))
+          .filter((item: any) => item.id);
+      } else if (adminsRaw?.admins && Array.isArray(adminsRaw.admins)) {
+        adminContacts = adminsRaw.admins
+          .map((item: any) => ({
+            id: String(item.id ?? item.admin_id ?? item.staff_id ?? item.sender_id ?? item.user_id ?? item.userId),
+            name: item.name || item.full_name || item.admin_name || item.sender_name || item.username || item.email || 'Admin',
+            email: item.email,
+          }))
+          .filter((item: any) => item.id);
+      } else if (adminsRaw?.data && Array.isArray(adminsRaw.data)) {
+        adminContacts = adminsRaw.data
+          .map((item: any) => ({
+            id: String(item.id ?? item.admin_id ?? item.staff_id ?? item.sender_id ?? item.user_id ?? item.userId),
+            name: item.name || item.full_name || item.admin_name || item.sender_name || item.username || item.email || 'Admin',
+            email: item.email,
+          }))
+          .filter((item: any) => item.id);
+      }
+
+      console.log("📋 Admin List Loaded:", adminContacts.length, "admins - Data:", adminsRaw);
+      setAdminList(adminContacts);
+
+      const getNotificationStudentId = (item: any) =>
+        item.student_id ?? item.studentId ?? item.user_id ?? item.userId ?? item.receiver_id ?? item.recipient_id ?? item.student?.id ?? item.student?.student_id;
+
+      const isForCurrentStudent = (item: any) => {
+        const itemStudentId = getNotificationStudentId(item);
+        if (itemStudentId === undefined || itemStudentId === null || itemStudentId === '') {
+          // Only allow broadcast types if no studentId is specified
+          return item.type === 'broadcast' || item.target === 'all' || item.target === '2026' || item.target === '2027' || item.target === '2028';
+        }
+        return String(itemStudentId) === String(dbId);
+      };
+
+>>>>>>> Stashed changes
       const isMessageItem = (item: any) =>
         item.type === 'admin_reply' ||
         item.type === 'student_message' ||
@@ -115,12 +181,57 @@ export default function AlertsScreen() {
 
       setAlerts(mappedAlerts);
 
+<<<<<<< Updated upstream
       const mappedMsgs = messageData.map((item: any) => ({
         id: String(item.id),
         sender_type: item.sender_type || item.sender || 'admin',
         message: item.message || item.text || '',
         created_at: formatTime(item.created_at || new Date().toISOString())
       }));
+=======
+      const getAdminId = (item: any) => {
+        return (
+          item.admin_id ??
+          item.staff_id ??
+          item.sender_id ??
+          item.sender?.id ??
+          item.sender ??
+          item.admin?.id ??
+          'admin-default'
+        );
+      };
+
+      const getAdminName = (item: any) => {
+        return (
+          item.admin_name ||
+          item.sender_name ||
+          item.sender?.name ||
+          item.admin?.name ||
+          'School Admin'
+        );
+      };
+
+      const mappedMsgs = messageData.map((item: any) => {
+        const itemTimestamp = item.created_at || item.timestamp || new Date().toISOString();
+        const parsedTimestamp = new Date(itemTimestamp).getTime();
+        
+        // Detect sender dynamically without hardcoding a falsy fallback to 'admin'
+        let sType = String(item.sender_type || item.sender || item.source || '').toLowerCase();
+        if (!sType && item.is_student === true) sType = 'student';
+        if (!sType && (item.is_admin === true || item.admin_id != null)) sType = 'admin';
+
+        return {
+          id: String(item.id),
+          sender_type: sType,
+          message: item.message || item.text || '',
+          created_at: formatTime(itemTimestamp),
+          timestamp: parsedTimestamp,
+          adminId: String(getAdminId(item)),
+          adminName: getAdminName(item),
+          rawItem: item, // Optional to preserve exactly what was sent
+        } as any;
+      });
+>>>>>>> Stashed changes
 
       setMessages(mappedMsgs.reverse());
 
@@ -163,7 +274,16 @@ export default function AlertsScreen() {
         return;
       }
 
+<<<<<<< Updated upstream
       const res = await sendStudentMessage(dbId, replyText.trim());
+=======
+      const res = await sendStudentMessage(
+        dbId,
+        replyText.trim(),
+        selectedAdminId && selectedAdminId !== 'admin-default' ? selectedAdminId : undefined,
+        'student'
+      );
+>>>>>>> Stashed changes
       if (res?.success !== false) {
         setReplyText('');
         fetchData();
@@ -293,6 +413,7 @@ export default function AlertsScreen() {
                   <Text style={[styles.bubbleTime, isStudent ? { textAlign: 'right', marginTop: 4 } : { textAlign: 'left', marginTop: 4 }]}>
                     {item.created_at}
                   </Text>
+<<<<<<< Updated upstream
                 </View>
               );
             }}
@@ -318,6 +439,53 @@ export default function AlertsScreen() {
               )}
             </TouchableOpacity>
           </View>
+=======
+                }
+                renderItem={({ item }) => {
+                  const isStudent = 
+                    item.sender_type === 'student' || 
+                    item.rawItem?.is_student === true ||
+                    item.rawItem?.source === 'student' || 
+                    (item.sender_type !== 'admin' && item.rawItem?.admin_id == null && (!item.rawItem?.is_admin));
+
+                  return (
+                    <View style={[styles.bubbleWrap, isStudent ? styles.bubbleRight : styles.bubbleLeft]}>
+                      <View style={[styles.bubble, isStudent ? styles.studentBubble : styles.adminBubble]}>
+                        <Text style={[styles.bubbleText, isStudent ? styles.studentText : styles.adminText]}>
+                          {item.message}
+                        </Text>
+                      </View>
+                      <Text style={[styles.bubbleTime, isStudent ? { textAlign: 'right', marginTop: 4 } : { textAlign: 'left', marginTop: 4 }]}>
+                        {item.created_at}
+                      </Text>
+                    </View>
+                  );
+                }}
+              />
+              <View style={styles.inputArea}>
+                <TextInput
+                  style={styles.chatInput}
+                  placeholder="Type a message..."
+                  placeholderTextColor={Colors.text.muted}
+                  value={replyText}
+                  onChangeText={setReplyText}
+                  multiline
+                />
+                <TouchableOpacity
+                  style={[styles.sendBtn, !replyText.trim() && { opacity: 0.5 }]}
+                  onPress={handleSendReply}
+                  disabled={sending || !replyText.trim()}
+                >
+                  {sending ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <MaterialCommunityIcons name="send" size={20} color="#fff" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+>>>>>>> Stashed changes
         </View>
       )}
 

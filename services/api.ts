@@ -246,13 +246,26 @@ export const sendAnnouncement = async (payload: {
   }
 };
 
+<<<<<<< Updated upstream
 export const sendStudentMessage = async (studentId: string | number, message: string) => {
+=======
+export const sendStudentMessage = async (studentId: string | number, message: string, adminId?: string, senderType: 'admin' | 'student' = 'admin') => {
+>>>>>>> Stashed changes
   try {
     const response = await apiClient.post('/notifications/send', {
       student_id: studentId,
       target: 'student_message',
       message,
+<<<<<<< Updated upstream
     });
+=======
+      sender_type: senderType, // Force backend to record the identity
+      sender: senderType,      // Use both properties for maximum compatibility
+    };
+    if (adminId) payload.admin_id = adminId;
+
+    const response = await apiClient.post('/notifications/send', payload);
+>>>>>>> Stashed changes
     return response.data;
   } catch (error) {
     console.error("❌ API Error: Sending Student Message Failed", error);
