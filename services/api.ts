@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL, API_TIMEOUT } from '../constants/Network';
+import { ChatMessage } from '../types/index';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -293,5 +294,57 @@ export const getStudentNotifications = async (studentId: string | number) => {
   } catch (error) {
     console.error("❌ API Error: Fetch Student Notifications Failed", error);
     return [];
+  }
+};
+
+// Chat messaging endpoints
+export const getChatMessages = async (studentId: string | number): Promise<ChatMessage[]> => {
+  try {
+    const response = await apiClient.get(`/chat/messages/${studentId}`);
+    const messages = response.data || [];
+    
+    // Transform API response to chat format
+    return messages.map((msg: any) => ({
+      id: msg.id || msg.message_id,
+      sender: msg.sender === 'admin' ? 'admin' : 'student',
+      text: msg.message || msg.text,
+      timestamp: msg.created_at || msg.timestamp,
+      senderName: msg.sender_name || (msg.sender === 'admin' ? 'Admin' : 'Student'),
+    } as ChatMessage)).sort((a: ChatMessage, b: ChatMessage) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+  } catch (error) {
+    console.error("❌ API Error: Fetch Chat Messages Failed", error);
+    return [];
+  }
+};
+
+export const sendChatMessage = async (
+  studentId: string | number,
+  message: string,
+  adminId?: string
+): Promise<ChatMessage | null> => {
+  try {
+    const payload: any = {
+      student_id: studentId,
+      message,
+      sender: 'admin',
+    };
+    if (adminId) payload.admin_id = adminId;
+
+    const response = await apiClient.post(`/chat/send`, payload);
+    
+    // Transform response to chat format
+    const chatMessage: ChatMessage = {
+      id: response.data.id || response.data.message_id,
+      sender: 'admin' as const,
+      text: response.data.message || message,
+      timestamp: response.data.created_at || new Date().toISOString(),
+      senderName: 'Admin',
+    };
+    return chatMessage;
+  } catch (error) {
+    console.error("❌ API Error: Send Chat Message Failed", error);
+    return null;
   }
 };

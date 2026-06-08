@@ -1,12 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
-import { getRecentLocations, getStudents } from '../../../services/api';
+import MapView, { Marker, UrlTile } from 'react-native-maps';
+import { getRecentLocations } from '../../../services/api';
 
 export default function AdminTrackingScreen() {
   const [locations, setLocations] = useState<any[]>([]);
-  const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedClass, setSelectedClass] = useState('All');
@@ -15,8 +14,7 @@ export default function AdminTrackingScreen() {
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const [studentData, locationData] = await Promise.all([getStudents(), getRecentLocations()]);
-      setStudents(studentData || []);
+      const locationData = await getRecentLocations();
       setLocations(locationData || []);
       setError(null);
     } catch (err) {
@@ -38,10 +36,6 @@ export default function AdminTrackingScreen() {
     ? locations
     : locations.filter(loc => String(loc.student?.class) === String(selectedClass));
 
-  const onlineCount = students.filter((s: any) => s.status === 'online').length;
-  const offlineCount = students.filter((s: any) => s.status === 'offline').length;
-  const emergencyCount = locations.filter(loc => loc.sos_status === 'help').length;
-
   const initialRegion = {
     latitude: 10.2952207,
     longitude: 123.8955044,
@@ -49,9 +43,20 @@ export default function AdminTrackingScreen() {
     longitudeDelta: 0.015,
   };
 
+  const getMarkerColor = (gender: string | null) => {
+    const genderLower = String(gender || '').toLowerCase();
+    if (genderLower === 'male' || genderLower === 'boy' || genderLower === 'm') {
+      return '#3B82F6'; // Blue for boys
+    } else if (genderLower === 'female' || genderLower === 'girl' || genderLower === 'f') {
+      return '#EF4444'; // Red for girls
+    }
+    return '#1E2F97'; // Default color
+  };
+
   const renderMarkers = () => filteredLocations.map((loc) => {
     const studentInfo = loc.student || {};
     const isHelp = loc.sos_status === 'help';
+    const markerColor = isHelp ? '#E8313A' : getMarkerColor(studentInfo.gender);
     const coordinate = {
       latitude: Number(loc.latitude) || initialRegion.latitude,
       longitude: Number(loc.longitude) || initialRegion.longitude,
@@ -60,8 +65,10 @@ export default function AdminTrackingScreen() {
       <Marker
         key={loc.id ?? `${studentInfo.student_id}-${Math.random()}`}
         coordinate={coordinate}
+        title={studentInfo.name || 'Student'}
+        description={`Class: ${studentInfo.class || 'N/A'}`}
       >
-        <View style={[styles.markerCircle, isHelp ? styles.markerHelp : styles.markerNormal]}>
+        <View style={[styles.markerCircle, { backgroundColor: markerColor }]}>
           <MaterialCommunityIcons name={isHelp ? 'alert-circle' : 'map-marker'} size={18} color="#fff" />
         </View>
       </Marker>
@@ -103,21 +110,6 @@ export default function AdminTrackingScreen() {
           </View>
         ) : null}
 
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Online</Text>
-            <Text style={styles.summaryNumber}>{onlineCount}</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Offline</Text>
-            <Text style={styles.summaryNumber}>{offlineCount}</Text>
-          </View>
-          <View style={[styles.summaryCard, styles.summaryCardAlert]}>
-            <Text style={[styles.summaryLabel, styles.summaryLabelAlert]}>Alerts</Text>
-            <Text style={[styles.summaryNumber, styles.summaryNumberAlert]}>{emergencyCount}</Text>
-          </View>
-        </View>
-
         <View style={styles.filterSection}>
           <Text style={styles.sectionHeading}>Filter by class</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterList}>
@@ -140,32 +132,34 @@ export default function AdminTrackingScreen() {
             <Text style={styles.mapTitle}>Student Location Map</Text>
             <Text style={styles.mapMeta}>{filteredLocations.length} pins</Text>
           </View>
-          <MapView style={styles.map} initialRegion={initialRegion}>
+          <MapView 
+            style={styles.map} 
+            initialRegion={initialRegion} 
+            mapType="none"
+            zoomEnabled={true}
+            scrollEnabled={true}
+            pitchEnabled={false}
+            rotateEnabled={false}
+          >
+            <UrlTile
+              urlTemplate="https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maximumZ={19}
+              minimumZ={0}
+              flipY={false}
+            />
             {renderMarkers()}
           </MapView>
-        </View>
 
-        <View style={styles.listCard}>
-          <Text style={styles.listTitle}>Recent Student Activity</Text>
-          {filteredLocations.slice(0, 5).map((loc) => {
-            const studentInfo = loc.student || {};
-            const statusText = loc.sos_status === 'help' ? 'Emergency' : 'Safe';
-            return (
-              <View key={loc.id} style={styles.activityRow}>
-                <View style={styles.activityLeft}>
-                  <Text style={styles.activityName}>{studentInfo.name || 'Unknown'}</Text>
-                  <Text style={styles.activityMeta}>{studentInfo.student_id || 'N/A'} · {studentInfo.class || '—'}</Text>
-                </View>
-                <View style={styles.activityRight}>
-                  <Text style={[styles.activityStatus, loc.sos_status === 'help' ? styles.activityStatusAlert : styles.activityStatusOk]}>
-                    {statusText}
-                  </Text>
-                  <Text style={styles.activityTime}>{new Date(loc.recorded_at).toLocaleTimeString()}</Text>
-                </View>
-              </View>
-            );
-          })}
-          {filteredLocations.length === 0 ? <Text style={styles.emptyText}>No location updates found.</Text> : null}
+          <View style={styles.legendContainer}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: '#3B82F6' }]} />
+              <Text style={styles.legendLabel}>Boys</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: '#EF4444' }]} />
+              <Text style={styles.legendLabel}>Girls</Text>
+            </View>
+          </View>
         </View>
 
       </ScrollView>
@@ -248,32 +242,35 @@ const styles = StyleSheet.create({
   mapTitle: { fontSize: 16, fontWeight: '800', color: '#111827' },
   mapMeta: { fontSize: 12, color: '#9CA3AF' },
   map: { width: '100%', height: 220, borderRadius: 18 },
-  listCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#1E2F97',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-  },
-  listTitle: { fontSize: 16, fontWeight: '800', color: '#111827', marginBottom: 12 },
-  activityRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  activityLeft: { flex: 1, marginRight: 10 },
-  activityName: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  activityMeta: { fontSize: 12, color: '#6B7280', marginTop: 4 },
-  activityRight: { alignItems: 'flex-end' },
-  activityStatus: { fontSize: 11, fontWeight: '800', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12, overflow: 'hidden' },
-  activityStatusOk: { color: '#059669', backgroundColor: '#D1FAE5' },
-  activityStatusAlert: { color: '#B91C1C', backgroundColor: '#FEE2E2' },
-  activityTime: { fontSize: 11, color: '#9CA3AF', marginTop: 4 },
-  emptyText: { marginTop: 10, color: '#9CA3AF', textAlign: 'center', fontSize: 14 },
   loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7FF' },
   loadingText: { marginTop: 12, fontSize: 15, color: '#1E2F97', fontWeight: '600' },
   markerCircle: { width: 38, height: 38, borderRadius: 20, justifyContent: 'center', alignItems: 'center', elevation: 4 },
   markerNormal: { backgroundColor: '#1E2F97' },
   markerHelp: { backgroundColor: '#E8313A' },
+  legendContainer: { 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginTop: 16, 
+    paddingTop: 12, 
+    borderTopWidth: 1, 
+    borderTopColor: '#E5E7EB', 
+    gap: 20 
+  },
+  legendItem: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8 
+  },
+  legendColor: { 
+    width: 16, 
+    height: 16, 
+    borderRadius: 8 
+  },
+  legendLabel: { 
+    fontSize: 12, 
+    fontWeight: '600', 
+    color: '#6B7280' 
+  },
 });
+

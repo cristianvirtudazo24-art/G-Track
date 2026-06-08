@@ -21,7 +21,11 @@ export const login = async (identifier: string, pass: string, role: 'student' | 
       payload.student_id = studentId;
     }
 
+    console.log(`🔍 Attempting ${role} login to endpoint: ${endpoint}`, payload);
+    
     const response = await authClient.post(endpoint, payload);
+    
+    console.log(`✅ ${role} login response:`, response.data);
 
     if (response.data.message === 'Login successful' || response.data.success || response.data.student || response.data.user) {
       return {
