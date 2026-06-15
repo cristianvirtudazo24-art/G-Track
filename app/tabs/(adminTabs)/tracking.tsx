@@ -142,7 +142,7 @@ export default function AdminTrackingScreen() {
             rotateEnabled={false}
           >
             <UrlTile
-              urlTemplate="https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              urlTemplate="https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
               maximumZ={19}
               minimumZ={0}
               flipY={false}

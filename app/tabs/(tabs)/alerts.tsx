@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, DeviceEventEmitter, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { BorderRadius, Colors, Shadows, Spacing, Typography } from '../../../constants/theme';
+import { Colors, Shadows } from '../../../constants/theme';
 import { getAdmins, getStudentNotifications, sendStudentMessage } from '../../../services/api';
 import { normalizeHtml } from '../../../utils/helpers';
 
@@ -38,9 +38,9 @@ interface AdminThread {
 }
 
 const ALERT_CONFIG: Record<string, { color: string; bg: string; icon: string; defaultTitle: string }> = {
-  info: { color: Colors.primary, bg: Colors.primaryLight, icon: 'information', defaultTitle: 'Announcement' },
-  warning: { color: Colors.secondary, bg: Colors.primaryLight, icon: 'alert', defaultTitle: 'Security Warning' },
-  danger: { color: Colors.accent, bg: Colors.primaryLight, icon: 'alert-octagon', defaultTitle: 'Urgent Alert' },
+  info: { color: '#1E2F97', bg: '#EEF2FF', icon: 'information-outline', defaultTitle: 'Announcement' },
+  warning: { color: '#F97316', bg: '#FFF7ED', icon: 'alert-outline', defaultTitle: 'Security Warning' },
+  danger: { color: '#EF4444', bg: '#FEE2E2', icon: 'alert-octagon-outline', defaultTitle: 'Urgent Alert' },
 };
 
 export default function AlertsScreen() {
@@ -104,7 +104,7 @@ export default function AlertsScreen() {
         ? alertsRaw
         : (alertsRaw?.notifications || alertsRaw?.data || []);
 
-      // Parse admin list - handle multiple response formats
+      // Parse admin list
       let adminContacts: AdminContact[] = [];
       if (Array.isArray(adminsRaw)) {
         adminContacts = adminsRaw
@@ -132,7 +132,6 @@ export default function AlertsScreen() {
           .filter((item: any) => item.id);
       }
 
-      console.log("📋 Admin List Loaded:", adminContacts.length, "admins - Data:", adminsRaw);
       setAdminList(adminContacts);
 
       const getNotificationStudentId = (item: any) =>
@@ -263,7 +262,6 @@ export default function AlertsScreen() {
     loadReadAlerts();
     fetchData();
 
-    // 10-minute auto-refresh polling
     const interval = setInterval(() => {
       fetchData();
     }, 10 * 60 * 1000);
@@ -314,6 +312,8 @@ export default function AlertsScreen() {
     return activeSubTab === 'read' ? isRead : !isRead;
   });
 
+  const unreadCount = alerts.filter(a => !readAlertIds.includes(a.id)).length;
+
   const selectedAdminThread = adminThreads.find(thread => thread.id === selectedAdminId);
   const selectedAdminFromList = adminList.find(admin => admin.id === selectedAdminId);
   
@@ -325,7 +325,7 @@ export default function AlertsScreen() {
   if (loading && !refreshing) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color="#1E2F97" />
       </View>
     );
   }
@@ -336,14 +336,16 @@ export default function AlertsScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
     >
+      {/* Header Section */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Alerts Center</Text>
 
-        {/* Main Tabs */}
+        {/* Main Selector Tabs */}
         <View style={styles.mainTabsBox}>
           <TouchableOpacity
             style={[styles.mainTabBtn, activeTab === 'broadcasts' && styles.mainTabBtnActive]}
             onPress={() => setActiveTab('broadcasts')}
+            activeOpacity={0.8}
           >
             <Text style={[styles.mainTabText, activeTab === 'broadcasts' && styles.mainTabTextActive]}>Broadcasts</Text>
           </TouchableOpacity>
@@ -353,6 +355,7 @@ export default function AlertsScreen() {
               setActiveTab('messages');
               setSelectedAdminId(null);
             }}
+            activeOpacity={0.8}
           >
             <Text style={[styles.mainTabText, activeTab === 'messages' && styles.mainTabTextActive]}>Messages</Text>
           </TouchableOpacity>
@@ -361,28 +364,38 @@ export default function AlertsScreen() {
 
       {activeTab === 'broadcasts' ? (
         <View style={styles.tabContent}>
-          {/* Sub Tabs */}
+          {/* Sub Navigation Tabs */}
           <View style={styles.subTabsBox}>
             <TouchableOpacity
               style={[styles.subTabBtn, activeSubTab === 'unread' && styles.subTabBtnActive]}
               onPress={() => setActiveSubTab('unread')}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.subTabText, activeSubTab === 'unread' && styles.subTabTextActive]}>Unread</Text>
+              <View style={styles.subTabLabelContainer}>
+                <Text style={[styles.subTabText, activeSubTab === 'unread' && styles.subTabTextActive]}>Unread</Text>
+                {unreadCount > 0 && (
+                  <View style={styles.badgeContainer}>
+                    <Text style={styles.badgeText}>{unreadCount}</Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.subTabBtn, activeSubTab === 'read' && styles.subTabBtnActive]}
               onPress={() => setActiveSubTab('read')}
+              activeOpacity={0.7}
             >
               <Text style={[styles.subTabText, activeSubTab === 'read' && styles.subTabTextActive]}>Read</Text>
             </TouchableOpacity>
           </View>
 
+          {/* Broadcasts List */}
           <FlatList
             data={filteredAlerts}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.secondary]} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#1E2F97"]} />}
             ListEmptyComponent={<Text style={styles.emptyText}>No {activeSubTab} alerts at this time.</Text>}
             renderItem={({ item }) => {
               const cfg = ALERT_CONFIG[item.type] ?? ALERT_CONFIG.info;
@@ -390,21 +403,21 @@ export default function AlertsScreen() {
 
               return (
                 <TouchableOpacity
-                  activeOpacity={0.7}
+                  activeOpacity={0.8}
                   onPress={() => setSelectedAlert(item)}
-                  style={[styles.alertCard, isUnread && styles.alertCardUnread]}
+                  style={styles.alertCard}
                 >
+                  {isUnread && <View style={styles.verticalIndicator} />}
                   <View style={[styles.iconWrap, { backgroundColor: cfg.bg }]}>
-                    <MaterialCommunityIcons name={cfg.icon as any} size={22} color={cfg.color} />
+                    <MaterialCommunityIcons name={cfg.icon as any} size={20} color={cfg.color} />
                   </View>
                   <View style={styles.alertContent}>
                     <View style={styles.alertHeader}>
-                      <Text style={[styles.alertTitle, { color: cfg.color }]}>{item.title}</Text>
+                      <Text style={styles.alertTitle} numberOfLines={1}>{item.title}</Text>
                       <Text style={styles.alertTime}>{item.time}</Text>
                     </View>
-                    <Text style={styles.alertBody}>{item.body}</Text>
+                    <Text style={styles.alertBody} numberOfLines={2}>{item.body}</Text>
                   </View>
-                  {isUnread && <View style={styles.unreadIndicator} />}
                 </TouchableOpacity>
               );
             }}
@@ -421,12 +434,13 @@ export default function AlertsScreen() {
                   keyExtractor={(item) => item.id}
                   contentContainerStyle={styles.threadList}
                   showsVerticalScrollIndicator={false}
-                  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
+                  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#1E2F97"]} />}
                   ListEmptyComponent={<Text style={styles.emptyText}>No admins available yet.</Text>}
                   renderItem={({ item }) => (
                     <TouchableOpacity
                       style={styles.threadCard}
                       onPress={() => setSelectedAdminId(item.id)}
+                      activeOpacity={0.7}
                     >
                       <View style={styles.threadInfo}>
                         <Text style={styles.threadName}>{item.name}</Text>
@@ -441,16 +455,17 @@ export default function AlertsScreen() {
                   keyExtractor={(item) => item.id}
                   contentContainerStyle={styles.threadList}
                   showsVerticalScrollIndicator={false}
-                  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
+                  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#1E2F97"]} />}
                   ListEmptyComponent={<Text style={styles.emptyText}>No admin conversations available yet.</Text>}
                   renderItem={({ item }) => (
                     <TouchableOpacity
                       style={styles.threadCard}
                       onPress={() => setSelectedAdminId(item.id)}
+                      activeOpacity={0.7}
                     >
                       <View style={styles.threadInfo}>
                         <Text style={styles.threadName}>{item.name}</Text>
-                        <Text style={styles.threadLast}>{item.lastMessage}</Text>
+                        <Text style={styles.threadLast} numberOfLines={1}>{item.lastMessage}</Text>
                       </View>
                       <Text style={styles.threadTime}>{item.updatedAt ? formatTime(new Date(item.updatedAt).toISOString()) : ''}</Text>
                     </TouchableOpacity>
@@ -461,8 +476,8 @@ export default function AlertsScreen() {
           ) : (
             <>
               <View style={styles.chatHeader}>
-                <TouchableOpacity onPress={() => setSelectedAdminId(null)} style={styles.chatBackButton}>
-                  <MaterialCommunityIcons name="arrow-left" size={22} color={Colors.text.primary} />
+                <TouchableOpacity onPress={() => setSelectedAdminId(null)} style={styles.chatBackButton} activeOpacity={0.6}>
+                  <MaterialCommunityIcons name="arrow-left" size={22} color="#1F2937" />
                 </TouchableOpacity>
                 <Text style={styles.chatHeaderTitle}>{selectedAdminName || 'Admin Chat'}</Text>
               </View>
@@ -471,7 +486,7 @@ export default function AlertsScreen() {
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.chatList}
                 showsVerticalScrollIndicator={false}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#1E2F97"]} />}
                 ListEmptyComponent={
                   <Text style={styles.emptyText}>
                     No conversation yet. Send your first message.
@@ -486,7 +501,7 @@ export default function AlertsScreen() {
                           {item.message}
                         </Text>
                       </View>
-                      <Text style={[styles.bubbleTime, isStudent ? { textAlign: 'right', marginTop: 4 } : { textAlign: 'left', marginTop: 4 }]}>
+                      <Text style={[styles.bubbleTime, isStudent ? { textAlign: 'right' } : { textAlign: 'left' }]}>
                         {item.created_at}
                       </Text>
                     </View>
@@ -497,7 +512,7 @@ export default function AlertsScreen() {
                 <TextInput
                   style={styles.chatInput}
                   placeholder="Type a message..."
-                  placeholderTextColor={Colors.text.muted}
+                  placeholderTextColor="#9CA3AF"
                   value={replyText}
                   onChangeText={setReplyText}
                   multiline
@@ -506,6 +521,7 @@ export default function AlertsScreen() {
                   style={[styles.sendBtn, !replyText.trim() && { opacity: 0.5 }]}
                   onPress={handleSendReply}
                   disabled={sending || !replyText.trim()}
+                  activeOpacity={0.8}
                 >
                   {sending ? (
                     <ActivityIndicator size="small" color="#fff" />
@@ -519,7 +535,7 @@ export default function AlertsScreen() {
         </View>
       )}
 
-      {/* Broadcast Modal */}
+      {/* Broadcast Details Modal */}
       <Modal
         visible={!!selectedAlert}
         transparent={true}
@@ -547,6 +563,7 @@ export default function AlertsScreen() {
                       if (isUnread) markAlertAsRead(selectedAlert.id);
                       setSelectedAlert(null);
                     }}
+                    activeOpacity={0.85}
                   >
                     <Text style={styles.modalBtnText}>{isUnread ? 'Acknowledge' : 'Close'}</Text>
                   </TouchableOpacity>
@@ -556,313 +573,377 @@ export default function AlertsScreen() {
           </View>
         </View>
       </Modal>
-
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background.secondary },
-  centered: { justifyContent: 'center', alignItems: 'center' },
-  header: {
-    backgroundColor: Colors.primary,
-    paddingTop: Spacing.xxxl + Spacing.sm,
-    paddingBottom: Spacing.xl,
-    paddingHorizontal: Spacing.xl,
-    borderBottomLeftRadius: BorderRadius.xxl,
-    borderBottomRightRadius: BorderRadius.xxl,
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  centered: {
+    justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
+  },
+  header: {
+    backgroundColor: '#FFFFFF',
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   headerTitle: {
-    fontSize: Typography.fontSize.xxl,
-    fontWeight: Typography.fontWeight.extrabold,
-    color: Colors.text.inverse,
-    marginBottom: Spacing.lg
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1E2F97',
+    marginBottom: 16,
   },
   mainTabsBox: {
     flexDirection: 'row',
-    backgroundColor: Colors.whiteAlpha[15],
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.xs,
+    backgroundColor: '#E5EDF9',
+    borderRadius: 16,
+    padding: 4,
     width: '100%',
+    height: 50,
   },
   mainTabBtn: {
     flex: 1,
-    paddingVertical: Spacing.md,
+    justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: BorderRadius.lg,
+    borderRadius: 12,
   },
   mainTabBtnActive: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: '#FFFFFF',
+    ...Shadows.sm,
   },
   mainTabText: {
-    color: Colors.whiteAlpha[15],
-    fontWeight: Typography.fontWeight.bold,
-    fontSize: Typography.fontSize.sm,
+    color: '#6B7280',
+    fontWeight: '700',
+    fontSize: 14,
   },
   mainTabTextActive: {
-    color: Colors.text.inverse,
+    color: '#1E2F97',
   },
-  tabContent: { flex: 1 },
+  tabContent: {
+    flex: 1,
+  },
   subTabsBox: {
     flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xs,
-    justifyContent: 'center',
-    gap: Spacing.xl,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   subTabBtn: {
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+    marginRight: 24,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
   subTabBtnActive: {
-    borderBottomColor: Colors.primary,
+    borderBottomColor: '#1E2F97',
   },
   subTabText: {
-    color: Colors.text.muted,
-    fontWeight: Typography.fontWeight.semibold,
-    fontSize: Typography.fontSize.md,
+    color: '#9CA3AF',
+    fontWeight: '600',
+    fontSize: 15,
   },
   subTabTextActive: {
-    color: Colors.primary,
+    color: '#1E2F97',
+    fontWeight: '800',
   },
-  list: { padding: Spacing.lg, paddingBottom: Spacing.xxxl },
-  threadList: { padding: Spacing.lg, paddingBottom: Spacing.xxxl },
-  alertCard: {
-    backgroundColor: Colors.background.primary,
-    borderRadius: BorderRadius.xl,
-    marginBottom: Spacing.lg,
+  subTabLabelContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: Spacing.lg,
-    ...Shadows.md,
+    alignItems: 'center',
   },
-  alertCardUnread: {
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.secondary,
+  badgeContainer: {
+    backgroundColor: '#F97316',
+    borderRadius: 10,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    marginLeft: 5,
   },
-  unreadIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.secondary,
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  list: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  threadList: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  alertCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    elevation: 2,
+    shadowColor: '#1E2F97',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  verticalIndicator: {
+    width: 4,
+    height: 32,
+    backgroundColor: '#F97316',
+    borderRadius: 2,
     position: 'absolute',
-    top: Spacing.lg,
-    right: Spacing.lg,
+    left: 0,
   },
   iconWrap: {
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    marginRight: Spacing.lg,
-    marginTop: Spacing.xs
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  alertContent: { flex: 1 },
+  alertContent: {
+    flex: 1,
+  },
   alertHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xs
+    alignItems: 'baseline',
+    marginBottom: 4,
   },
   alertTitle: {
-    fontWeight: Typography.fontWeight.bold,
-    fontSize: Typography.fontSize.md
+    fontWeight: '800',
+    fontSize: 15,
+    color: '#1F2937',
+    flex: 1,
+    marginRight: 8,
   },
   alertTime: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.text.muted
+    fontSize: 11,
+    color: '#9CA3AF',
+    fontWeight: '500',
   },
   alertBody: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.text.secondary,
-    lineHeight: 21
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 18,
   },
   emptyText: {
     textAlign: 'center',
-    color: Colors.text.muted,
-    fontSize: Typography.fontSize.md,
-    marginTop: 60
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginTop: 60,
+    fontWeight: '500',
   },
 
-  // Chat Styles
-  chatWrapper: { flex: 1 },
+  // Chat/Messages Styles
+  chatWrapper: {
+    flex: 1,
+  },
   chatList: {
-    padding: Spacing.lg,
-    paddingBottom: 120, // Increased to ensure space for input area when keyboard appears
+    padding: 20,
+    paddingBottom: 100,
   },
   threadListContainer: {
     flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
   threadListHeading: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.text.primary,
-    marginBottom: Spacing.md,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1F2937',
+    marginBottom: 12,
   },
   threadCard: {
-    backgroundColor: Colors.background.primary,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    ...Shadows.md,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    elevation: 2,
+    shadowColor: '#1E2F97',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
   },
   threadInfo: {
-    marginBottom: Spacing.xs,
+    marginBottom: 4,
   },
   threadName: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.text.primary,
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1F2937',
   },
   threadLast: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.text.secondary,
-    marginTop: Spacing.xs,
-    lineHeight: 20,
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 4,
   },
   threadTime: {
-    fontSize: Typography.fontSize.xs,
-    color: Colors.text.muted,
+    fontSize: 11,
+    color: '#9CA3AF',
     textAlign: 'right',
+    marginTop: 4,
+    fontWeight: '500',
   },
   chatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.background.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.slate[100],
+    borderBottomColor: '#F3F4F6',
   },
   chatBackButton: {
-    marginRight: Spacing.md,
-    padding: Spacing.sm,
+    marginRight: 8,
+    padding: 4,
   },
   chatHeaderTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.text.primary,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1F2937',
   },
-  bubbleWrap: { marginBottom: Spacing.lg, maxWidth: '85%' },
-  bubbleLeft: { alignSelf: 'flex-start' },
-  bubbleRight: { alignSelf: 'flex-end' },
+  bubbleWrap: {
+    marginBottom: 16,
+    maxWidth: '85%',
+  },
+  bubbleLeft: {
+    alignSelf: 'flex-start',
+  },
+  bubbleRight: {
+    alignSelf: 'flex-end',
+  },
   bubble: {
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.xl,
-    minWidth: 60
+    padding: 12,
+    borderRadius: 16,
+    minWidth: 60,
   },
   adminBubble: {
-    backgroundColor: Colors.background.primary,
-    borderBottomLeftRadius: BorderRadius.sm
+    backgroundColor: '#F3F4F6',
+    borderBottomLeftRadius: 4,
   },
   studentBubble: {
-    backgroundColor: Colors.secondary,
-    borderBottomRightRadius: BorderRadius.sm
+    backgroundColor: '#1E2F97',
+    borderBottomRightRadius: 4,
   },
   bubbleText: {
-    fontSize: Typography.fontSize.md,
-    lineHeight: 22
+    fontSize: 14,
+    lineHeight: 20,
   },
-  adminText: { color: Colors.text.primary },
-  studentText: { color: Colors.text.inverse },
+  adminText: {
+    color: '#1F2937',
+  },
+  studentText: {
+    color: '#FFFFFF',
+  },
   bubbleTime: {
-    fontSize: Typography.fontSize.xs,
-    color: Colors.text.muted
+    fontSize: 10,
+    color: '#9CA3AF',
+    marginTop: 4,
+    fontWeight: '500',
   },
-
   inputArea: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.background.primary,
-    borderTopLeftRadius: BorderRadius.xxl,
-    borderTopRightRadius: BorderRadius.xxl,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    paddingBottom: Platform.OS === 'ios' ? Spacing.md : Spacing.xl, // Extra padding for Android keyboard
-    ...Shadows.lg,
-    marginBottom: Platform.OS === 'android' ? Spacing.md : 0, // Extra margin for Android
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 24,
   },
   chatInput: {
     flex: 1,
-    maxHeight: 120,
-    minHeight: 45,
-    backgroundColor: Colors.slate[100],
-    borderRadius: BorderRadius.xxl,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.md,
-    color: Colors.text.primary,
-    fontSize: Typography.fontSize.md,
+    maxHeight: 100,
+    minHeight: 40,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    color: '#1F2937',
+    fontSize: 14,
   },
   sendBtn: {
-    backgroundColor: Colors.primary,
-    width: 45,
-    height: 45,
-    borderRadius: BorderRadius.xxl,
+    backgroundColor: '#1E2F97',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: Spacing.md,
+    marginLeft: 12,
   },
 
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: Colors.blackAlpha[50],
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.lg,
+    padding: 20,
   },
   modalContainer: {
     width: '100%',
-    backgroundColor: Colors.background.primary,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.xl,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
     alignItems: 'center',
     ...Shadows.lg,
   },
   modalIconWrap: {
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.xl,
-    marginBottom: Spacing.lg,
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
   },
   modalTitle: {
-    fontSize: Typography.fontSize.xl,
-    fontWeight: Typography.fontWeight.extrabold,
-    marginBottom: Spacing.sm,
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 6,
     textAlign: 'center',
   },
   modalTime: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.text.muted,
-    marginBottom: Spacing.xl,
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginBottom: 16,
+    fontWeight: '500',
   },
   modalBodyContainer: {
-    backgroundColor: Colors.slate[100],
+    backgroundColor: '#F3F4F6',
     width: '100%',
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.xl,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
   },
   modalBody: {
-    fontSize: Typography.fontSize.md,
-    color: Colors.text.secondary,
-    lineHeight: 24,
+    fontSize: 14,
+    color: '#4B5563',
+    lineHeight: 22,
     textAlign: 'center',
   },
   modalBtn: {
     width: '100%',
-    paddingVertical: Spacing.lg,
-    borderRadius: BorderRadius.lg,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
   },
   modalBtnText: {
-    color: Colors.text.inverse,
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.bold,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

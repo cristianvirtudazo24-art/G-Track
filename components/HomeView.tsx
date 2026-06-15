@@ -1,76 +1,47 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView } from 'expo-camera';
 import React from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LocationCard } from './LocationCard';
-import { SOSButton } from './SOSButton';
 import { SOSModal } from './SOSModal';
 import { StudentMapView } from './StudentMapView';
-
-const { width } = Dimensions.get('window');
-
-const HEADER_CONFIG = {
-  safe: {
-    bg: '#1E2F97',
-    icon: 'shield-check' as const,
-    iconColor: '#6EE7B7',
-  },
-  help: {
-    bg: '#C0192A',
-    icon: 'alert-circle' as const,
-    iconColor: '#FECDD3',
-  },
-  blackout: {
-    bg: '#C2410C',
-    icon: 'lightning-bolt' as const,
-    iconColor: '#FED7AA',
-  },
-};
+import { Colors } from '../constants/theme';
 
 export const HomeView = (props: any) => {
   const currentStatus: 'safe' | 'help' | 'blackout' = props.currentStatus ?? 'safe';
-  const hdr = HEADER_CONFIG[currentStatus];
   const studentName = props.studentName ?? 'Student';
 
-  const renderHeaderContent = () => {
-    if (currentStatus === 'help') {
-      return (
-        <>
-          <View style={styles.headerStatusRow}>
-            <MaterialCommunityIcons name={hdr.icon} size={18} color={hdr.iconColor} />
-            <Text style={styles.headerStatusLabel}>EMERGENCY</Text>
-          </View>
-          <Text style={styles.headerTitle}>{studentName} needed help</Text>
-          <Text style={styles.headerSub}>
-            {props.isUploading ? '📤 Uploading video...' : '📹 Camera is recording'}
-          </Text>
-        </>
-      );
+  // Status configuration for the header pill
+  const getStatusPillConfig = () => {
+    switch (currentStatus) {
+      case 'help':
+        return {
+          text: 'Emergency',
+          color: '#F87171',
+          borderColor: '#EF4444',
+          bgColor: 'rgba(239, 68, 68, 0.15)',
+          icon: 'alert-circle' as const,
+        };
+      case 'blackout':
+        return {
+          text: 'Blackout',
+          color: '#FB923C',
+          borderColor: '#F97316',
+          bgColor: 'rgba(249, 115, 22, 0.15)',
+          icon: 'lightning-bolt' as const,
+        };
+      default: // safe
+        return {
+          text: 'Safe',
+          color: '#34D399',
+          borderColor: '#059669',
+          bgColor: 'rgba(5, 150, 105, 0.15)',
+          icon: 'shield-check-outline' as const,
+        };
     }
-    if (currentStatus === 'blackout') {
-      return (
-        <>
-          <View style={styles.headerStatusRow}>
-            <MaterialCommunityIcons name={hdr.icon} size={18} color={hdr.iconColor} />
-            <Text style={styles.headerStatusLabel}>BLACKOUT ALERT</Text>
-          </View>
-          <Text style={styles.headerTitle}>{studentName}</Text>
-          <Text style={styles.headerSub}>⚡ Blackout alert sent to admin</Text>
-        </>
-      );
-    }
-    // default: safe
-    return (
-      <>
-        <Text style={styles.headerGreeting}>{studentName}</Text>
-        <Text style={styles.headerTitle}>G!Track Dashboard</Text>
-        <View style={styles.headerStatusRow}>
-          <MaterialCommunityIcons name={hdr.icon} size={15} color={hdr.iconColor} />
-          <Text style={[styles.headerStatusLabel, { color: hdr.iconColor }]}>Safe</Text>
-        </View>
-      </>
-    );
   };
+
+  const statusPill = getStatusPillConfig();
 
   return (
     <View style={styles.outer}>
@@ -81,148 +52,237 @@ export const HomeView = (props: any) => {
         style={styles.hideCam}
       />
 
-      <View style={[styles.header, { backgroundColor: hdr.bg }]}>
-        <View style={{ flex: 1 }}>
-          {renderHeaderContent()}
+      {/* Header Section */}
+      <View style={styles.header}>
+        <View style={styles.headerTopRow}>
+          <Text style={styles.headerGreeting} numberOfLines={1}>
+            {studentName}
+          </Text>
+          <View style={styles.sysIcons}>
+            <MaterialCommunityIcons name="signal-cellular-3" size={14} color="rgba(255,255,255,0.7)" style={{ marginRight: 6 }} />
+            <MaterialCommunityIcons name="wifi" size={14} color="rgba(255,255,255,0.7)" />
+          </View>
+        </View>
+
+        <View style={styles.headerBottomRow}>
+          <View>
+            <Text style={styles.headerTitle}>G!Track</Text>
+            <Text style={styles.headerTitle}>Dashboard</Text>
+          </View>
+          <View style={[styles.statusPill, { borderColor: statusPill.borderColor, backgroundColor: statusPill.bgColor }]}>
+            <MaterialCommunityIcons name={statusPill.icon} size={15} color={statusPill.color} style={{ marginRight: 4 }} />
+            <Text style={[styles.statusPillText, { color: statusPill.color }]}>{statusPill.text}</Text>
+          </View>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <LocationCard
-          location={props.location}
-          errorMsg={props.errorMsg}
-        />
+      {/* Current Location Card */}
+      <LocationCard
+        location={props.location}
+        errorMsg={props.errorMsg}
+      />
 
+      {/* Full-width Map Section */}
+      <View style={styles.mapWrapper}>
         <StudentMapView
           location={props.location}
           errorMsg={props.errorMsg}
         />
+      </View>
 
-        <View style={styles.btnSection}>
-          <Text style={styles.sectionLabel}>EMERGENCY ACTIONS</Text>
-          <SOSButton onPress={() => props.setModalVisible(true)} />
-        </View>
-
-        <View style={styles.btnSection}>
-          <Text style={styles.sectionLabel}>SAFETY CHECK-IN</Text>
+      {/* Quick Actions Footer */}
+      <View style={styles.footer}>
+        <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
+        <View style={styles.btnRow}>
+          {/* SOS Button */}
           <TouchableOpacity
-            style={styles.safeCard}
+            style={[styles.actionBtn, styles.sosBtn]}
+            onPress={() => props.setModalVisible(true)}
+            activeOpacity={0.85}
+          >
+            <View style={styles.btnContent}>
+              <View style={styles.iconCircleRed}>
+                <MaterialCommunityIcons name="alert-outline" size={20} color="white" />
+              </View>
+              <View style={styles.btnTextCol}>
+                <Text style={styles.btnTitle}>SOS</Text>
+                <Text style={styles.btnSub}>Report emergency</Text>
+              </View>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={16} color="white" style={styles.chevron} />
+          </TouchableOpacity>
+
+          {/* I'm Safe Button */}
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.safeBtn]}
             onPress={props.onSafeAction}
             activeOpacity={0.85}
           >
-            <View style={styles.safeIconContainer}>
-              <MaterialCommunityIcons name="shield-check" size={28} color="white" />
+            <View style={styles.btnContent}>
+              <View style={styles.iconCircleGreen}>
+                <MaterialCommunityIcons name="shield-check-outline" size={20} color="white" />
+              </View>
+              <View style={styles.btnTextCol}>
+                <Text style={styles.btnTitle}>I'm Safe</Text>
+                <Text style={styles.btnSub}>Send check-in</Text>
+              </View>
             </View>
-            <View style={styles.safeTextContainer}>
-              <Text style={styles.safeTitle}>I am Safe</Text>
-              <Text style={styles.safeSubtitle}>Send a safety check-in to admin</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={22} color="rgba(255,255,255,0.7)" />
+            <MaterialCommunityIcons name="chevron-right" size={16} color="white" style={styles.chevron} />
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
 
       <SOSModal
         isVisible={props.modalVisible}
         onClose={() => props.setModalVisible(false)}
         onSelectAction={props.onSOSAction}
       />
-
-
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  outer: { flex: 1, backgroundColor: '#F5F7FF' },
-  hideCam: { height: 1, width: 1, opacity: 0, position: 'absolute' },
+  outer: {
+    flex: 1,
+    backgroundColor: '#F5F7FF',
+  },
+  hideCam: {
+    height: 1,
+    width: 1,
+    opacity: 0,
+    position: 'absolute',
+  },
   header: {
-    paddingTop: 55,
-    paddingBottom: 28,
-    paddingHorizontal: 24,
+    backgroundColor: '#1E2F97',
+    paddingTop: 50,
+    paddingBottom: 22,
+    paddingHorizontal: 20,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
-  headerGreeting: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.75)',
-    marginBottom: 2,
-    fontWeight: '600',
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: 0.3,
     marginBottom: 6,
   },
-  headerSub: {
+  headerGreeting: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-    fontWeight: '500',
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 12,
+  },
+  sysIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
     marginTop: 2,
   },
-  headerStatusRow: {
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#fff',
+    lineHeight: 30,
+  },
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginBottom: 4,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    alignSelf: 'flex-end',
+    marginBottom: 2,
   },
-  headerStatusLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: 'rgba(255,255,255,0.75)',
-    letterSpacing: 1.2,
-  },
-  content: {
-    paddingTop: 24,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
-  },
-  btnSection: { marginTop: 8 },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#9CA3AF',
-    letterSpacing: 1.2,
-    marginBottom: 12,
-  },
-  safeCard: {
-    backgroundColor: '#059669',
-    width: '100%',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    marginBottom: 12,
-  },
-  safeIconContainer: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    padding: 10,
-    borderRadius: 12,
-    marginRight: 14,
-  },
-  safeTextContainer: { flex: 1 },
-  safeTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    marginBottom: 1,
-  },
-  safeSubtitle: {
-    color: 'rgba(255,255,255,0.85)',
+  statusPillText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '700',
   },
-
+  mapWrapper: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: '#E5E7EB',
+  },
+  footer: {
+    backgroundColor: '#F5F7FF',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 20,
+  },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#4F46E5',
+    letterSpacing: 0.6,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  actionBtn: {
+    flex: 1,
+    height: 60,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  sosBtn: {
+    backgroundColor: '#DC2626',
+    shadowColor: '#DC2626',
+  },
+  safeBtn: {
+    backgroundColor: '#059669',
+    shadowColor: '#059669',
+  },
+  btnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconCircleRed: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  iconCircleGreen: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  btnTextCol: {
+    justifyContent: 'center',
+  },
+  btnTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  btnSub: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 9,
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  chevron: {
+    opacity: 0.8,
+  },
 });

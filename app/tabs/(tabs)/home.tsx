@@ -91,6 +91,16 @@ export default function HomeScreen() {
             videoMessage = 'Live Emergency Feed';
             setVideoSent(true);
             setCurrentStatus('safe');
+            
+            // Also update location status to 'help' for tracking
+            await sendSOS({ 
+              type: 'help', 
+              location, 
+              studentId, 
+              battery: batteryPercent, 
+              signal: signalStrength 
+            });
+            
             console.log('Video uploaded successfully - admin notified');
           } else {
             console.warn('Video upload failed - no notification sent to admin');

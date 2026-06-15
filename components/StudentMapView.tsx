@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { Platform, StyleSheet, Text, View } from 'react-native';
+import MapView, { Marker, UrlTile } from 'react-native-maps';
 import { Colors } from '../constants/theme';
 
 interface StudentMapViewProps {
@@ -10,6 +10,7 @@ interface StudentMapViewProps {
 }
 
 export const StudentMapView = ({ location, errorMsg }: StudentMapViewProps) => {
+
   // Default to San Francisco if location not available
   const initialRegion = useMemo(() => {
     if (location) {
@@ -45,12 +46,20 @@ export const StudentMapView = ({ location, errorMsg }: StudentMapViewProps) => {
       <MapView
         style={styles.map}
         initialRegion={initialRegion}
+        mapType="none"
         showsUserLocation={true}
+        showsMyLocationButton={true}
         zoomEnabled
         scrollEnabled
         pitchEnabled
         rotateEnabled
       >
+        <UrlTile
+          urlTemplate="https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
+          maximumZ={19}
+          minimumZ={0}
+          flipY={false}
+        />
         {location && (
           <Marker
             coordinate={{
@@ -69,11 +78,8 @@ export const StudentMapView = ({ location, errorMsg }: StudentMapViewProps) => {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     width: '100%',
-    height: 300,
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 20,
   },
   map: {
     width: '100%',
@@ -84,7 +90,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.background.secondary,
-    borderRadius: 14,
   },
   placeholderText: {
     fontSize: 14,
