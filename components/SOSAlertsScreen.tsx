@@ -11,8 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
-import { getSosAlerts, updateBlackoutAlertStatus } from '../services/api';
+import { getSosAlerts, updateBlackoutAlertStatus, resolveSOSAlert } from '../services/api';
+import SOSVideoPlayer from './SOSVideoPlayer';
 import { SOSAlertVideo } from '../types/index';
 import { API_BASE_URL } from '../constants/Network';
 
@@ -25,13 +25,7 @@ export const SOSAlertsScreen = ({ onBackPress }: Props) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadSosAlerts();
-    const interval = setInterval(loadSosAlerts, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadSosAlerts = async () => {
+  const loadSosAlerts = React.useCallback(async () => {
     try {
       const data = await getSosAlerts();
       setAlerts(data || []);
@@ -40,7 +34,13 @@ export const SOSAlertsScreen = ({ onBackPress }: Props) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadSosAlerts();
+    const interval = setInterval(loadSosAlerts, 5000);
+    return () => clearInterval(interval);
+  }, [loadSosAlerts]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -78,13 +78,13 @@ export const SOSAlertsScreen = ({ onBackPress }: Props) => {
           text: 'Yes, Resolved',
           onPress: async () => {
             try {
-              const result = await updateBlackoutAlertStatus(alertId, 'resolved');
+              const result = await resolveSOSAlert(alertId);
               if (result) {
                 Alert.alert('Success', 'SOS alert marked as resolved.', [
                   { text: 'OK', onPress: () => loadSosAlerts() }
                 ]);
               } else {
-                Alert.alert('Info', 'Alert marked as resolved.', [
+                Alert.alert('Info', 'Alert status updated on server.', [
                   { text: 'OK', onPress: () => loadSosAlerts() }
                 ]);
               }
@@ -151,17 +151,7 @@ export const SOSAlertsScreen = ({ onBackPress }: Props) => {
         {/* Video Player Container */}
         <View style={styles.videoPlayerContainer}>
           {hasVideo ? (
-            <Video
-              source={{ uri: getVideoUri(alert.videoUrl) }}
-              rate={1.0}
-              volume={1.0}
-              isMuted={false}
-              resizeMode={ResizeMode.CONTAIN}
-              shouldPlay={false}
-              useNativeControls
-              style={styles.inlineVideoPlayer}
-              onError={(error) => console.log('Inline Video Error:', error)}
-            />
+            <SOSVideoPlayer notificationId={alert.id} />
           ) : (
             <View style={styles.videoPlaceholderContainer}>
               <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" style={{ marginBottom: 8 }} />

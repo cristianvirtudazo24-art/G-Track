@@ -1,7 +1,8 @@
-import React from 'react';
-import { SectionList, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { Platform, SectionList, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius, Colors, Spacing, Typography } from '../constants/theme';
+import { BorderRadius, Spacing, Typography } from '../constants/theme';
 import { LocationTimelineEntry } from '../hooks/useLocation';
 
 interface Props {
@@ -15,8 +16,11 @@ interface GroupedEntries {
 }
 
 export const LocationTimeline = ({ entries }: Props) => {
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 36) : 44, 36);
+
   // Group and sort entries by date
-  const groupedEntries: GroupedEntries[] = React.useMemo(() => {
+  const groupedEntries: GroupedEntries[] = useMemo(() => {
     const groups: { [key: string]: { title: string; dateString: string; data: LocationTimelineEntry[] } } = {};
     
     // Sort entries descending by timestamp first (latest first)
@@ -77,8 +81,16 @@ export const LocationTimeline = ({ entries }: Props) => {
   };
 
   const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      <Text style={styles.title}>Location Timeline</Text>
+    <View style={[styles.headerContainer, { paddingTop: topInset + 16 }]}>
+      <View style={styles.headerTopRow}>
+        <View style={styles.headerTextCol}>
+          <Text style={styles.headerCategory}>G!TRACK HISTORY</Text>
+          <Text style={styles.title}>Location Timeline</Text>
+        </View>
+        <View style={styles.headerIconCircle}>
+          <MaterialCommunityIcons name="clock-outline" size={20} color="#FFFFFF" />
+        </View>
+      </View>
       <Text style={styles.subtitle}>Hourly location snapshots while tracking is active.</Text>
       
       {/* Tracking active status bar */}
@@ -170,34 +182,66 @@ export const LocationTimeline = ({ entries }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8FAFC',
   },
   headerContainer: {
-    marginBottom: Spacing.md,
+    backgroundColor: '#1E2F97',
+    paddingHorizontal: 20,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    marginBottom: Spacing.sm,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  headerTextCol: {
+    flex: 1,
+    marginRight: 12,
+  },
+  headerIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  headerCategory: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#93C5FD',
+    letterSpacing: 0.8,
+    marginBottom: 2,
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: Typography.fontWeight.extrabold,
-    color: '#0F172A',
-    marginBottom: Spacing.xs,
+    color: '#FFFFFF',
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#64748B',
-    marginBottom: Spacing.lg,
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginBottom: 16,
+    lineHeight: 18,
   },
   statusBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
     borderRadius: BorderRadius.lg,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FAFBFD',
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   statusLeft: {
     flexDirection: 'row',
@@ -211,13 +255,14 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   statusText: {
-    fontSize: 14,
-    fontWeight: Typography.fontWeight.semibold,
-    color: '#334155',
+    fontSize: 13,
+    fontWeight: Typography.fontWeight.bold,
+    color: '#FFFFFF',
   },
   snapshotsCount: {
-    fontSize: 13,
-    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   sectionHeaderRow: {
     flexDirection: 'row',

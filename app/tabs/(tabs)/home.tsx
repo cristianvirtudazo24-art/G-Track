@@ -1,5 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Battery from 'expo-battery';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HomeView } from '../../../components/HomeView';
 import { StatusSuccessModal } from '../../../components/StatusSuccessModal';
 import { useEmergencyRecord } from '../../../hooks/useEmergencyRecord';
@@ -12,7 +13,7 @@ export default function HomeScreen() {
   const { session, loading } = useUser();
   const { location, errorMsg } = useLocation();
   const { cameraRef, startEmergencyCapture, isRecording } = useEmergencyRecord();
-  const { networkInfo, getFormattedNetworkInfo } = useNetworkInfo();
+  const { getFormattedNetworkInfo } = useNetworkInfo();
 
   const [menuVisible, setMenuVisible] = useState(false);
   const [successVisible, setSuccessVisible] = useState(false);
@@ -31,6 +32,8 @@ export default function HomeScreen() {
         if (statusData && statusData.sos_status) {
           const serverStatus = statusData.sos_status === 'safe' ? 'safe' : 'help';
           setCurrentStatus(serverStatus);
+          // Sync server status to AsyncStorage
+          await AsyncStorage.setItem('sosStatus', serverStatus);
         }
       }
     };
@@ -64,7 +67,6 @@ export default function HomeScreen() {
       // For 'help' type, upload video (which creates the notification) - only notify if video upload succeeds
       if (type === 'help') {
         const videoUri = await startEmergencyCapture();
-        let videoMessage = 'Video feed is not available'; // Default message
 
         if (videoUri) {
           const batteryLevel = await Battery.getBatteryLevelAsync();
@@ -88,10 +90,12 @@ export default function HomeScreen() {
 
           // Only notify admin if video upload succeeds
           if (uploadResult) {
-            videoMessage = 'Live Emergency Feed';
             setVideoSent(true);
             setCurrentStatus('safe');
             
+            // Save status to AsyncStorage
+            await AsyncStorage.setItem('sosStatus', 'help');
+
             // Also update location status to 'help' for tracking
             await sendSOS({ 
               type: 'help', 
@@ -104,12 +108,10 @@ export default function HomeScreen() {
             console.log('Video uploaded successfully - admin notified');
           } else {
             console.warn('Video upload failed - no notification sent to admin');
-            videoMessage = 'Video feed is not available';
             // Don't send any fallback notification
           }
         } else {
           console.warn('Video recording failed - no notification sent to admin');
-          videoMessage = 'Video feed is not available';
           // Don't send any notification if video recording fails
         }
         
@@ -118,6 +120,10 @@ export default function HomeScreen() {
         const batteryLevel = await Battery.getBatteryLevelAsync();
         const batteryPercent = Math.round(batteryLevel * 100);
         const signalStrength = getFormattedNetworkInfo();
+        
+        // Save status to AsyncStorage
+        await AsyncStorage.setItem('sosStatus', 'safe');
+
         await sendSOS({ type, location, studentId, battery: batteryPercent, signal: signalStrength });
       }
     }

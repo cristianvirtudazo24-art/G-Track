@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { getBlackoutAlerts, updateBlackoutAlertStatus } from '../services/api';
+import { getBlackoutAlerts, updateBlackoutAlertStatus, resolveSOSAlert } from '../services/api';
 import { BlackoutAlert } from '../types/index';
 
 interface Props {
@@ -23,13 +23,7 @@ export const BlackoutAlertsScreen = ({ onBackPress }: Props) => {
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadBlackoutAlerts();
-    const interval = setInterval(loadBlackoutAlerts, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadBlackoutAlerts = async () => {
+  const loadBlackoutAlerts = React.useCallback(async () => {
     try {
       setLoading(true);
       const data = await getBlackoutAlerts();
@@ -39,7 +33,13 @@ export const BlackoutAlertsScreen = ({ onBackPress }: Props) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadBlackoutAlerts();
+    const interval = setInterval(loadBlackoutAlerts, 5000);
+    return () => clearInterval(interval);
+  }, [loadBlackoutAlerts]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -78,7 +78,7 @@ export const BlackoutAlertsScreen = ({ onBackPress }: Props) => {
           onPress: async () => {
             try {
               setUpdatingId(String(alert.id));
-              const result = await updateBlackoutAlertStatus(alert.id, 'resolved');
+              const result = await resolveSOSAlert(alert.id);
               
               if (result) {
                 Alert.alert('Success', 'Alert marked as resolved', [

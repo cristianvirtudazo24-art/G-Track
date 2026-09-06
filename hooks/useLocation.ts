@@ -174,12 +174,15 @@ export const useLocation = () => {
               const batteryLevel = await Battery.getBatteryLevelAsync();
               const batteryPercent = Math.round(batteryLevel * 100);
 
+              const storedStatus = await AsyncStorage.getItem('sosStatus') || 'safe';
+              const formattedStatus = storedStatus === 'help' ? 'Help' : 'Safe';
+
               const success = await syncStudentData({
                 studentId: dbIdRef.current,
                 latitude: newLocation.coords.latitude,
                 longitude: newLocation.coords.longitude,
                 battery: batteryPercent,
-                status: "Safe",
+                status: formattedStatus,
               });
 
               if (success) lastSyncTime.current = now;

@@ -1,15 +1,25 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView } from 'expo-camera';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LocationCard } from './LocationCard';
 import { SOSModal } from './SOSModal';
 import { StudentMapView } from './StudentMapView';
-import { Colors } from '../constants/theme';
 
-export const HomeView = (props: any) => {
-  const currentStatus: 'safe' | 'help' | 'blackout' = props.currentStatus ?? 'safe';
-  const studentName = props.studentName ?? 'Student';
+export const HomeView = ({
+  location = null,
+  errorMsg = null,
+  modalVisible = false,
+  setModalVisible = () => {},
+  onSOSAction = () => {},
+  onSafeAction = () => {},
+  cameraRef = null,
+  studentName = 'Student',
+  currentStatus = 'safe',
+}: any) => {
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 36) : 44, 36);
 
   // Status configuration for the header pill
   const getStatusPillConfig = () => {
@@ -46,28 +56,25 @@ export const HomeView = (props: any) => {
   return (
     <View style={styles.outer}>
       <CameraView
-        ref={props.cameraRef}
+        ref={cameraRef}
         mode="video"
         facing="front"
         style={styles.hideCam}
       />
 
       {/* Header Section */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: topInset + 12 }]}>
         <View style={styles.headerTopRow}>
-          <Text style={styles.headerGreeting} numberOfLines={1}>
-            {studentName}
+          <Text style={styles.headerSubtitle} numberOfLines={1}>
+            G!Track Dashboard
           </Text>
-          <View style={styles.sysIcons}>
-            <MaterialCommunityIcons name="signal-cellular-3" size={14} color="rgba(255,255,255,0.7)" style={{ marginRight: 6 }} />
-            <MaterialCommunityIcons name="wifi" size={14} color="rgba(255,255,255,0.7)" />
-          </View>
         </View>
 
         <View style={styles.headerBottomRow}>
-          <View>
-            <Text style={styles.headerTitle}>G!Track</Text>
-            <Text style={styles.headerTitle}>Dashboard</Text>
+          <View style={styles.studentNameWrap}>
+            <Text style={styles.studentNameText} numberOfLines={1}>
+              {studentName}
+            </Text>
           </View>
           <View style={[styles.statusPill, { borderColor: statusPill.borderColor, backgroundColor: statusPill.bgColor }]}>
             <MaterialCommunityIcons name={statusPill.icon} size={15} color={statusPill.color} style={{ marginRight: 4 }} />
@@ -78,15 +85,15 @@ export const HomeView = (props: any) => {
 
       {/* Current Location Card */}
       <LocationCard
-        location={props.location}
-        errorMsg={props.errorMsg}
+        location={location}
+        errorMsg={errorMsg}
       />
 
       {/* Full-width Map Section */}
       <View style={styles.mapWrapper}>
         <StudentMapView
-          location={props.location}
-          errorMsg={props.errorMsg}
+          location={location}
+          errorMsg={errorMsg}
         />
       </View>
 
@@ -97,7 +104,7 @@ export const HomeView = (props: any) => {
           {/* SOS Button */}
           <TouchableOpacity
             style={[styles.actionBtn, styles.sosBtn]}
-            onPress={() => props.setModalVisible(true)}
+            onPress={() => setModalVisible(true)}
             activeOpacity={0.85}
           >
             <View style={styles.btnContent}>
@@ -115,7 +122,7 @@ export const HomeView = (props: any) => {
           {/* I'm Safe Button */}
           <TouchableOpacity
             style={[styles.actionBtn, styles.safeBtn]}
-            onPress={props.onSafeAction}
+            onPress={onSafeAction}
             activeOpacity={0.85}
           >
             <View style={styles.btnContent}>
@@ -123,7 +130,7 @@ export const HomeView = (props: any) => {
                 <MaterialCommunityIcons name="shield-check-outline" size={20} color="white" />
               </View>
               <View style={styles.btnTextCol}>
-                <Text style={styles.btnTitle}>I'm Safe</Text>
+                <Text style={styles.btnTitle}>I&apos;m Safe</Text>
                 <Text style={styles.btnSub}>Send check-in</Text>
               </View>
             </View>
@@ -133,9 +140,9 @@ export const HomeView = (props: any) => {
       </View>
 
       <SOSModal
-        isVisible={props.modalVisible}
-        onClose={() => props.setModalVisible(false)}
-        onSelectAction={props.onSOSAction}
+        isVisible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onSelectAction={onSOSAction}
       />
     </View>
   );
@@ -154,38 +161,35 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#1E2F97',
-    paddingTop: 50,
     paddingBottom: 22,
     paddingHorizontal: 20,
   },
   headerTopRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  headerGreeting: {
+  headerSubtitle: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255, 255, 255, 0.75)',
     fontWeight: '600',
-    flex: 1,
-    marginRight: 12,
-  },
-  sysIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    letterSpacing: 0.3,
   },
   headerBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     marginTop: 2,
   },
-  headerTitle: {
-    fontSize: 26,
+  studentNameWrap: {
+    flex: 1,
+    marginRight: 12,
+  },
+  studentNameText: {
+    fontSize: 24,
     fontWeight: '800',
-    color: '#fff',
-    lineHeight: 30,
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
   statusPill: {
     flexDirection: 'row',

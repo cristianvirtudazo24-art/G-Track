@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
-import React, { useMemo } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, UrlTile } from 'react-native-maps';
 import { Colors } from '../constants/theme';
 
@@ -55,7 +55,7 @@ export const StudentMapView = ({ location, errorMsg }: StudentMapViewProps) => {
         rotateEnabled
       >
         <UrlTile
-          urlTemplate="https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
+          urlTemplate="https://a.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png"
           maximumZ={19}
           minimumZ={0}
           flipY={false}

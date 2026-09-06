@@ -32,12 +32,31 @@ export default function AdminActivityScreen() {
     fetchData();
   }, [fetchData]);
 
+  const getStudentDisplayName = (student: any) => {
+    if (!student) return 'Unknown';
+    const nestedStudent = student.student || {};
+    const firstName = student.first_name || nestedStudent.first_name;
+    const lastName = student.last_name || nestedStudent.last_name;
+    const joinedName = [firstName, lastName].filter(Boolean).join(' ');
+    return (
+      student.name ||
+      student.studentName ||
+      student.student_name ||
+      student.full_name ||
+      joinedName ||
+      nestedStudent.name ||
+      nestedStudent.studentName ||
+      nestedStudent.student_name ||
+      'Unknown'
+    );
+  };
+
   const filteredStudents = students.filter((student) => {
     const query = search.toLowerCase();
     return (
-      String(student.name || '').toLowerCase().includes(query) ||
-      String(student.student_id || '').toLowerCase().includes(query) ||
-      String(student.class || '').toLowerCase().includes(query)
+      getStudentDisplayName(student).toLowerCase().includes(query) ||
+      String(student.student_id || student.id || student.student?.student_id || student.student?.id || '').toLowerCase().includes(query) ||
+      String(student.class || student.student?.class || '').toLowerCase().includes(query)
     );
   });
 
@@ -68,15 +87,19 @@ export default function AdminActivityScreen() {
 
     return (
       <View style={styles.detailContent}>
-        <Pressable style={styles.backButton} onPress={() => setSelectedStudent(null)}>
-          <MaterialCommunityIcons name="arrow-left" size={18} color="#1E2F97" />
-          <Text style={styles.backButtonText}>Back to Student Activity</Text>
-        </Pressable>
+        <View style={styles.detailHeaderRow}>
+          <Pressable style={styles.topLeftBackButton} onPress={() => setSelectedStudent(null)}>
+            <MaterialCommunityIcons name="arrow-left" size={20} color="#1E2F97" />
+          </Pressable>
+          <View style={styles.detailTextBlock}>
+            <Text style={styles.detailTitle}>{getStudentDisplayName(selectedStudent) || 'Student Details'}</Text>
+            <Text style={styles.detailSubtitle}>Timeline and student connection details</Text>
+          </View>
+        </View>
 
         <View style={styles.detailHeader}>
           <View>
-            <Text style={styles.detailTitle}>{selectedStudent.name || 'Student Details'}</Text>
-            <Text style={styles.detailSubtitle}>Timeline and student connection details</Text>
+            <Text style={styles.detailSectionHeading}>Student overview</Text>
           </View>
         </View>
 
@@ -136,7 +159,7 @@ export default function AdminActivityScreen() {
                   <Text style={styles.timelineLocation}>{item.address || item.location || 'Unknown location'}</Text>
                 </View>
                 <View style={styles.timelineStatusRow}>
-                  <View style={[styles.statusBadge, { backgroundColor: item.status === 'safe' ? '#DCFCE7' : '#F3F4F6' }]}> 
+                  <View style={[styles.statusBadge, { backgroundColor: item.status === 'safe' ? '#DCFCE7' : '#F3F4F6' }]}>
                     <View style={[styles.statusDot, { backgroundColor: item.status === 'safe' ? '#059669' : '#9CA3AF' }]} />
                     <Text style={[styles.statusText, { color: item.status === 'safe' ? '#059669' : '#9CA3AF' }]}>{item.status ? item.status.toUpperCase() : 'STATUS'}</Text>
                   </View>
@@ -230,8 +253,8 @@ export default function AdminActivityScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.tableContainer}>
               <View style={styles.tableHeader}>
-                <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Student ID</Text>
                 <Text style={[styles.tableHeaderCell, { flex: 1.4 }]}>Name</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Student ID</Text>
                 <Text style={[styles.tableHeaderCell, { flex: 0.9 }]}>Class</Text>
                 <Text style={[styles.tableHeaderCell, { flex: 0.9 }]}>Gender</Text>
                 <Text style={[styles.tableHeaderCell, { flex: 0.9 }]}>Status</Text>
@@ -239,18 +262,18 @@ export default function AdminActivityScreen() {
                 <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>Signal</Text>
                 <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>Last Update</Text>
                 <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>Contact</Text>
-                <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Timeline</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>Action</Text>
               </View>
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((student, index) => {
                   const lastLocation = getLastLocation(student);
                   return (
                     <View key={String(student.student_id ?? student.id ?? index)} style={[styles.tableRow, index % 2 === 0 && styles.tableRowEven]}>
+                      <Text style={[styles.tableCell, { flex: 1.4 }]} numberOfLines={1}>{getStudentDisplayName(student)}</Text>
                       <Text style={[styles.tableCell, { flex: 1 }]} numberOfLines={1}>{student.student_id || student.id || 'N/A'}</Text>
-                      <Text style={[styles.tableCell, { flex: 1.4 }]} numberOfLines={1}>{student.name || 'Unknown'}</Text>
                       <Text style={[styles.tableCell, { flex: 0.9 }]} numberOfLines={1}>{student.class || '—'}</Text>
                       <Text style={[styles.tableCell, { flex: 0.9 }]} numberOfLines={1}>{student.gender || '—'}</Text>
-                      <View style={[styles.statusBadge, { flex: 0.9, backgroundColor: student.status === 'online' ? '#DCFCE7' : '#F3F4F6' }]}> 
+                      <View style={[styles.statusBadge, { flex: 0.9, backgroundColor: student.status === 'online' ? '#DCFCE7' : '#F3F4F6' }]}>
                         <View style={[styles.statusDot, { backgroundColor: student.status === 'online' ? '#059669' : '#9CA3AF' }]} />
                         <Text style={[styles.statusText, { color: student.status === 'online' ? '#059669' : '#9CA3AF' }]}>
                           {student.status === 'online' ? 'Online' : 'Offline'}
@@ -260,7 +283,7 @@ export default function AdminActivityScreen() {
                       <Text style={[styles.tableCell, { flex: 1.2 }]} numberOfLines={1}>{student.signal || '—'}</Text>
                       <Text style={[styles.tableCell, { flex: 1.2 }]} numberOfLines={1}>{lastLocation ? new Date(lastLocation.recorded_at).toLocaleString() : 'No update'}</Text>
                       <Text style={[styles.tableCell, { flex: 1.2 }]} numberOfLines={1}>{student.contact || student.phone || '—'}</Text>
-                      <Pressable style={styles.viewHistoryButton} onPress={() => setSelectedStudent(student)}>
+                      <Pressable style={[styles.viewHistoryButton, { flex: 1.2, minWidth: 0, paddingHorizontal: 10 }]} onPress={() => setSelectedStudent(student)}>
                         <Text style={styles.viewHistoryButtonText}>View History</Text>
                       </Pressable>
                     </View>
@@ -273,6 +296,7 @@ export default function AdminActivityScreen() {
               )}
             </View>
           </ScrollView>
+
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -281,10 +305,18 @@ export default function AdminActivityScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F5F7FF' },
-  container: { paddingBottom: 40 },
-  header: { marginHorizontal: 16, marginTop: 18, marginBottom: 10 },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: '#111827' },
-  headerSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 6 },
+  container: { paddingTop: 22, paddingBottom: 40 },
+  header: {
+    backgroundColor: '#1E2F97',
+    margin: 16,
+    borderRadius: 24,
+    padding: 20,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  headerTitle: { fontSize: 26, fontWeight: '800', color: '#fff' },
+  headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 6, lineHeight: 19 },
   searchCard: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
@@ -328,7 +360,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   errorText: { color: '#fff', marginLeft: 10, flex: 1, fontSize: 13 },
-  tableSection: { marginHorizontal: 16, marginTop: 18 },
+  tableSection: { marginHorizontal: 16, marginTop: 30 },
   tableSectionHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
   tableSectionTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
   tableSectionSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2, fontWeight: '500' },
@@ -355,10 +387,14 @@ const styles = StyleSheet.create({
   emptyStateText: { fontSize: 14, color: '#9CA3AF', fontWeight: '500' },
   backButton: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 18, paddingVertical: 8, paddingHorizontal: 14, backgroundColor: '#EFF6FF', borderRadius: 16 },
   backButtonText: { color: '#1E2F97', marginLeft: 8, fontWeight: '700' },
-  detailContent: { paddingBottom: 40 },
+  detailContent: { paddingBottom: 40, marginTop: 8 },
   detailHeader: { marginHorizontal: 16, marginBottom: 18 },
-  detailTitle: { fontSize: 26, fontWeight: '800', color: '#111827' },
-  detailSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 6 },
+  detailHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', marginHorizontal: 16, marginTop: 6, marginBottom: 18 },
+  topLeftBackButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  detailTextBlock: { paddingTop: 4 },
+  detailTitle: { fontSize: 22, fontWeight: '800', color: '#111827' },
+  detailSectionHeading: { fontSize: 15, color: '#6B7280', fontWeight: '700' },
+  detailSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 10 },
   detailGrid: { marginHorizontal: 16 },
   detailCard: { backgroundColor: '#fff', borderRadius: 22, padding: 18, elevation: 2, shadowColor: '#1E2F97', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, marginBottom: 18 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 16 },
@@ -378,7 +414,9 @@ const styles = StyleSheet.create({
   timelineTime: { fontSize: 12, color: '#6B7280', fontWeight: '700', marginBottom: 4 },
   timelineLocation: { fontSize: 14, color: '#111827', fontWeight: '600' },
   timelineStatusRow: { alignItems: 'flex-end' },
-  viewHistoryButton: { backgroundColor: '#1E40AF', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, minWidth: 100, alignItems: 'center' },
+  viewHistoryButton: { backgroundColor: '#1E40AF', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  tableActionCell: { flex: 0.8, backgroundColor: '#EFF6FF', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 6, minWidth: 90 },
+  tableActionText: { color: '#1E40AF', fontSize: 12, fontWeight: '700' },
   viewHistoryButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7FF' },
   loadingText: { marginTop: 12, color: '#1E2F97', fontSize: 15, fontWeight: '600' },

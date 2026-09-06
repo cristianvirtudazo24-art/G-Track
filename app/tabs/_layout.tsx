@@ -76,12 +76,15 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
       const location = locations[0];
       const batteryLevel = await Battery.getBatteryLevelAsync();
       const batteryPercent = Math.round(batteryLevel * 100);
+      const storedStatus = await AsyncStorage.getItem('sosStatus') || 'safe';
+      const formattedStatus = storedStatus === 'help' ? 'Help' : 'Safe';
+
       await syncStudentData({
         studentId: dbId,
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         battery: batteryPercent,
-        status: "Safe",
+        status: formattedStatus,
         timestamp: new Date().toISOString()
       });
       await saveTimelineSnapshot(dbId, location);

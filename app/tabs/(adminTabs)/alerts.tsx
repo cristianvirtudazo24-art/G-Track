@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   Alert,
@@ -33,6 +34,8 @@ type EmergencyAlertType = 'sos' | 'blackout' | null;
 export default function AdminAlertsScreen() {
   const { session } = useUser();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  const bottomInset = insets.bottom;
   const [alerts, setAlerts] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('student_messages');
@@ -86,15 +89,16 @@ export default function AdminAlertsScreen() {
     } else {
       navigation.setOptions({
         tabBarStyle: {
-          height: 65,
-          paddingBottom: 10,
+          height: 58 + bottomInset,
+          paddingBottom: bottomInset > 0 ? bottomInset : 8,
+          paddingTop: 6,
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: '#E5E7EB',
         },
       });
     }
-  }, [selectedStudent, viewMode, navigation]);
+  }, [selectedStudent, viewMode, navigation, bottomInset]);
 
   useEffect(() => {
     if (viewMode === 'student_messages') {
@@ -172,7 +176,7 @@ export default function AdminAlertsScreen() {
     setSending(true);
 
     try {
-      const result = await sendChatMessage(selectedStudent.id, messageText, session?.dbId || undefined);
+      const result = await sendChatMessage(selectedStudent.id, messageText, session?.dbId || undefined, session?.name || undefined);
 
       if (result) {
         // Add message to local state immediately for optimistic update
@@ -252,6 +256,7 @@ export default function AdminAlertsScreen() {
         message: composerForm.messageContent,
         targetClass: composerForm.targetAudience as 'all' | '2026' | '2027' | '2028',
         adminId: session?.dbId || undefined,
+        adminName: session?.name || undefined,
       });
 
       console.log('📢 [handleSendBroadcast] Result from API:', result);

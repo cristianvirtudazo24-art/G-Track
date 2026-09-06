@@ -51,7 +51,10 @@ export const useUser = () => {
   };
 
   useEffect(() => {
-    loadSession();
+    const init = async () => {
+      await loadSession();
+    };
+    init();
   }, []);
 
   const clearSession = async () => {
