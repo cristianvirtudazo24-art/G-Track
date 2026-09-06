@@ -289,44 +289,12 @@ export const uploadEmergencyVideo = async (payload: {
     console.error('❌ Video upload server error:', uploadResult.status, responseData);
     return null;
   } catch (fsError: any) {
-    console.warn('⚠️ FileSystem.uploadAsync error, trying FormData fallback...', fsError?.message || fsError);
-
-    // Fallback: standard FormData
-    try {
-      const formData = new FormData();
-      // @ts-ignore
-      formData.append('video', { uri: videoUri, type: 'video/mp4', name: 'sos.mp4' });
-      Object.keys(parameters).forEach(key => {
-        formData.append(key, parameters[key]);
-      });
-
-      const response = await fetch(uploadUrl, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-
-      const responseText = await response.text();
-      let responseData: any;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch {
-        responseData = responseText;
-      }
-
-      if (response.ok) {
-        console.log('✅ Video uploaded successfully via fallback:', responseData);
-        return responseData || { success: true };
-      }
-
-      console.error('❌ Video upload fallback failed:', response.status, responseData);
-      return null;
-    } catch (fallbackErr: any) {
-      console.error('❌ API Error: Video Upload Failed', fallbackErr?.message || fallbackErr);
-      return null;
-    }
+    console.error('❌ Video upload failed: backend unreachable or invalid upload URL.', {
+      uploadUrl,
+      apiBaseUrl: API_BASE_URL,
+      message: fsError?.message || String(fsError),
+    });
+    return null;
   }
 };
 

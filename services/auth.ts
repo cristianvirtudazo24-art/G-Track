@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_BASE_URL, API_TIMEOUT } from '../constants/Network';
+import { API_BASE_URL, API_TIMEOUT, USE_REAL_API } from '../constants/Network';
 
 const authClient = axios.create({
   baseURL: API_BASE_URL,
@@ -46,34 +46,40 @@ export const login = async (identifier: string, pass: string, role: 'student' | 
     return { success: false, message: response.data.message || "Invalid credentials" };
   } catch (error: any) {
     if (error?.code === 'ERR_NETWORK' || error?.message?.includes('Network')) {
-      console.warn(`⚠️ API Warning: Backend Server at ${API_BASE_URL} is offline/unreachable. Falling back to local offline session.`);
-      // Offline fallback so app can be tested even when Laravel backend is offline
-      if (role === 'student') {
-        return {
-          success: true,
-          role: 'student',
-          user: {
-            id: 1,
-            name: "Cristian Virtudazo",
-            student_id: studentId || "STU2026009",
-            email: "student@gtrack.ph",
-            gender: "Male"
-          },
-          message: "Offline Demo Login Successful"
-        };
-      } else {
-        return {
-          success: true,
-          role: 'admin',
-          user: {
-            id: 1,
-            name: "Admin User",
-            staff_id: identifier || "ADMIN001",
-            email: "admin@gtrack.ph"
-          },
-          message: "Offline Demo Login Successful"
-        };
+      if (!USE_REAL_API) {
+        console.warn(`⚠️ API Warning: Backend Server at ${API_BASE_URL} is offline/unreachable. Falling back to local offline session.`);
+        // Offline fallback so app can be tested even when Laravel backend is offline
+        if (role === 'student') {
+          return {
+            success: true,
+            role: 'student',
+            user: {
+              id: 1,
+              name: "Cristian Virtudazo",
+              student_id: studentId || "STU2026009",
+              email: "student@gtrack.ph",
+              gender: "Male"
+            },
+            message: "Offline Demo Login Successful"
+          };
+        } else {
+          return {
+            success: true,
+            role: 'admin',
+            user: {
+              id: 1,
+              name: "Admin User",
+              staff_id: identifier || "ADMIN001",
+              email: "admin@gtrack.ph"
+            },
+            message: "Offline Demo Login Successful"
+          };
+        }
       }
+
+      const backendMessage = `Backend unavailable at ${API_BASE_URL}. Start Laravel with 'php artisan serve --host 0.0.0.0 --port 8007' and confirm the IP matches your device.`;
+      console.error(`❌ API Error: ${backendMessage}`);
+      throw new Error(backendMessage);
     }
 
     console.error("❌ Auth Error: Connection or Logic Failure", error);

@@ -3,11 +3,12 @@
  * Centralized IP management for connecting to the Admin Team's Laravel backend.
  */
 
-// REPLACE with the Admin Team's laptop IP address (e.g., '192.168.0.108')
+// IMPORTANT:
+// Use the Admin Team laptop IP that matches the machine running Laravel.
+// This project is configured to the laptop LAN address ending in 108.
 export const ADMIN_LAPTOP_IP = '192.168.0.108';
 
-
-// THE PORT Laravel uses (usually 8000)
+// The port Laravel is serving on.
 export const LARAVEL_PORT = '8007';
 export const API_BASE_URL = `http://${ADMIN_LAPTOP_IP}:${LARAVEL_PORT}/api`;
 export const API_TIMEOUT = 8000;
