@@ -4,12 +4,21 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Colors } from '../constants/theme';
 
+export interface OtherStudentLocation {
+  id: string | number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  sos_status?: 'safe' | 'help' | 'blackout' | string;
+}
+
 interface StudentMapViewProps {
   location: Location.LocationObject | null;
+  otherStudents?: OtherStudentLocation[];
   errorMsg: string | null;
 }
 
-export const StudentMapView = ({ location, errorMsg }: StudentMapViewProps) => {
+export const StudentMapView = ({ location, otherStudents = [], errorMsg }: StudentMapViewProps) => {
   const lat = location?.coords?.latitude ?? 10.2953;
   const lon = location?.coords?.longitude ?? 123.8955;
 
@@ -23,6 +32,8 @@ export const StudentMapView = ({ location, errorMsg }: StudentMapViewProps) => {
       <style>
         html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; background-color: #f8fafc; }
         .leaflet-control-container .leaflet-routing-container-hide { display: none; }
+        
+        /* Your Location Marker */
         .user-location-marker {
           width: 22px;
           height: 22px;
@@ -41,6 +52,30 @@ export const StudentMapView = ({ location, errorMsg }: StudentMapViewProps) => {
           left: -11px;
           animation: pulse 2s infinite;
         }
+
+        /* Classmate / Other Student Markers */
+        .classmate-marker {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          border: 2px solid #FFFFFF;
+          box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+        }
+        .status-safe { background-color: #059669; }
+        .status-help { background-color: #DC2626; }
+        .status-blackout { background-color: #D97706; }
+        
+        .pulse-help {
+          position: absolute;
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background-color: rgba(220, 38, 38, 0.4);
+          top: -9px;
+          left: -9px;
+          animation: pulse 1.5s infinite;
+        }
+
         @keyframes pulse {
           0% { transform: scale(0.6); opacity: 1; }
           100% { transform: scale(1.6); opacity: 0; }
@@ -68,19 +103,39 @@ export const StudentMapView = ({ location, errorMsg }: StudentMapViewProps) => {
           subdomains: ['a', 'b', 'c']
         }).addTo(map);
 
-        var customIcon = L.divIcon({
+        // Render Your Location Marker
+        var userIcon = L.divIcon({
           className: 'custom-pin-wrapper',
           html: '<div style="position:relative;"><div class="user-location-pulse"></div><div class="user-location-marker"></div></div>',
           iconSize: [22, 22],
           iconAnchor: [11, 11]
         });
-
-        var marker = L.marker([${lat}, ${lon}], { icon: customIcon }).addTo(map);
+        var marker = L.marker([${lat}, ${lon}], { icon: userIcon }).addTo(map);
         marker.bindPopup("<b>Your Location</b><br>Lat: ${lat.toFixed(5)}, Lon: ${lon.toFixed(5)}");
+
+        // Render Classmate / Other Student Markers
+        var otherStudentsData = ${JSON.stringify(otherStudents)};
+        otherStudentsData.forEach(function(st) {
+          if (st.latitude && st.longitude) {
+            var statusClass = st.sos_status === 'help' ? 'status-help' : (st.sos_status === 'blackout' ? 'status-blackout' : 'status-safe');
+            var pulseHtml = st.sos_status === 'help' ? '<div class="pulse-help"></div>' : '';
+            var statusLabel = st.sos_status === 'help' ? '<span style="color:#DC2626;font-weight:bold;">🚨 SOS Emergency</span>' : (st.sos_status === 'blackout' ? '<span style="color:#D97706;font-weight:bold;">⚡ Blackout</span>' : '<span style="color:#059669;font-weight:bold;">🟢 Safe</span>');
+
+            var classmateIcon = L.divIcon({
+              className: 'classmate-pin-wrapper',
+              html: '<div style="position:relative;">' + pulseHtml + '<div class="classmate-marker ' + statusClass + '"></div></div>',
+              iconSize: [18, 18],
+              iconAnchor: [9, 9]
+            });
+
+            var m = L.marker([st.latitude, st.longitude], { icon: classmateIcon }).addTo(map);
+            m.bindPopup("<b>" + (st.name || 'Student') + "</b><br>Status: " + statusLabel);
+          }
+        });
       </script>
     </body>
     </html>
-  `, [lat, lon]);
+  `, [lat, lon, otherStudents]);
 
   if (errorMsg || !location) {
     return (

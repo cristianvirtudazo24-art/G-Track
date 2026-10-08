@@ -9,6 +9,7 @@ import { StudentMapView } from './StudentMapView';
 
 export const HomeView = ({
   location = null,
+  otherStudents = [],
   errorMsg = null,
   modalVisible = false,
   setModalVisible = () => {},
@@ -93,6 +94,7 @@ export const HomeView = ({
       <View style={styles.mapWrapper}>
         <StudentMapView
           location={location}
+          otherStudents={otherStudents}
           errorMsg={errorMsg}
         />
       </View>

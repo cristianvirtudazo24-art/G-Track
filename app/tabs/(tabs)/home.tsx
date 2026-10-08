@@ -7,7 +7,7 @@ import { useEmergencyRecord } from '../../../hooks/useEmergencyRecord';
 import { useLocation } from '../../../hooks/useLocation';
 import { useNetworkInfo } from '../../../hooks/useNetworkInfo';
 import { useUser } from '../../../hooks/useUser';
-import { getStudentStatus, sendBlackoutAlert, sendSOS, uploadEmergencyVideo } from '../../../services/api';
+import { getRecentLocations, getStudentStatus, sendBlackoutAlert, sendSOS, uploadEmergencyVideo } from '../../../services/api';
 
 export default function HomeScreen() {
   const { session, loading } = useUser();
@@ -21,30 +21,50 @@ export default function HomeScreen() {
   const [currentStatus, setCurrentStatus] = useState<'safe' | 'help' | 'blackout'>('safe');
   const [videoSent, setVideoSent] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [otherStudents, setOtherStudents] = useState<any[]>([]);
 
-  // Poll for status updates from server
+  // Poll for status updates and classmate locations from server
   useEffect(() => {
     if (!session.dbId) return;
 
-    const pollStatus = async () => {
+    const pollStatusAndLocations = async () => {
       if (session.dbId) {
         const statusData = await getStudentStatus(session.dbId);
         if (statusData && statusData.sos_status) {
           const serverStatus = statusData.sos_status === 'safe' ? 'safe' : 'help';
           setCurrentStatus(serverStatus);
-          // Sync server status to AsyncStorage
           await AsyncStorage.setItem('sosStatus', serverStatus);
         }
+      }
+
+      // Fetch classmate locations to pin on the map
+      const locations = await getRecentLocations();
+      if (Array.isArray(locations)) {
+        const filtered = locations
+          .filter((loc: any) => {
+            const isSelf = String(loc.student?.id) === String(session.dbId) || 
+                           String(loc.student_id) === String(session.studentId) ||
+                           String(loc.student?.student_id) === String(session.studentId);
+            return !isSelf;
+          })
+          .map((loc: any) => ({
+            id: loc.id || loc.student?.id || Math.random(),
+            name: loc.student?.name || 'Student',
+            latitude: Number(loc.latitude),
+            longitude: Number(loc.longitude),
+            sos_status: loc.sos_status || 'safe',
+          }));
+        setOtherStudents(filtered);
       }
     };
 
     // Poll every 10 seconds
-    const interval = setInterval(pollStatus, 10000);
+    const interval = setInterval(pollStatusAndLocations, 10000);
     // Initial poll
-    pollStatus();
+    pollStatusAndLocations();
 
     return () => clearInterval(interval);
-  }, [session.dbId]);
+  }, [session.dbId, session.studentId]);
 
   if (loading) return null;
 
@@ -135,6 +155,7 @@ export default function HomeScreen() {
     <>
       <HomeView
         location={location}
+        otherStudents={otherStudents}
         errorMsg={errorMsg}
         modalVisible={menuVisible}
         setModalVisible={setMenuVisible}
