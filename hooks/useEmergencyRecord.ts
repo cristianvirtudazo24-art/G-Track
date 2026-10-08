@@ -19,10 +19,9 @@ export const useEmergencyRecord = () => {
       try {
         setIsRecording(true);
 
-        // Record an SOS video of up to ~10 seconds.
-        // This gives a longer emergency clip for help alerts.
+        // Record an SOS video of up to 9 seconds.
         let video = await cameraRef.current.recordAsync({
-          maxDuration: 10, // about 10 seconds max
+          maxDuration: 9, // exactly 9 seconds
         });
 
         if (video?.uri) {

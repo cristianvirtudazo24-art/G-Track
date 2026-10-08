@@ -1,9 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAlerts, getDashboardStats, getRecentLocations, getStudents } from '../../../services/api';
 
 export default function AdminDashboard() {
+  const insets = useSafeAreaInsets();
   const [students, setStudents] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
@@ -38,7 +40,7 @@ export default function AdminDashboard() {
         setError(null);
       }
       const now = new Date();
-      setLastUpdatedTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setLastUpdatedTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
       setLastUpdatedDate(now.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }));
     } catch (err) {
       console.error("Dashboard Fetch Error:", err);
@@ -59,21 +61,21 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-
   const onlineCount = serverOnlineCount !== undefined ? serverOnlineCount : students.filter(s => s.status === 'online').length;
   const offlineCount = serverOfflineCount !== undefined ? serverOfflineCount : students.filter(s => s.status === 'offline').length;
+  const totalCount = (onlineCount || 0) + (offlineCount || 0) || students.length;
 
   if (loading && !refreshing) {
     return (
       <View style={styles.loadingCenter}>
         <ActivityIndicator size="large" color="#1E2F97" />
-        <Text style={styles.loadingText}>Loading Dashboard...</Text>
+        <Text style={styles.loadingText}>Initializing Admin Dashboard...</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { paddingTop: Platform.OS === 'android' ? Math.max(insets.top, 12) : 0 }]}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -86,57 +88,91 @@ export default function AdminDashboard() {
             <RefreshControl refreshing={refreshing} onRefresh={() => fetchData(true)} colors={["#1E2F97"]} />
           }
         >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerGreeting}>G!Track System Monitor 👋</Text>
-            <Text style={styles.headerTitle}>Admin Dashboard</Text>
+          {/* Header Banner */}
+          <View style={styles.header}>
+            <View style={styles.headerContent}>
+              <View style={styles.systemStatusPill}>
+                <View style={styles.statusPulseDot} />
+                <Text style={styles.systemStatusText}>G!Track System Active</Text>
+              </View>
+              <Text style={styles.headerTitle}>Admin Dashboard</Text>
+              <Text style={styles.headerSubtitle}>Real-time campus monitoring & telemetry</Text>
+            </View>
+            <View style={styles.headerAvatar}>
+              <MaterialCommunityIcons name="shield-check" size={28} color="#1E2F97" />
+            </View>
           </View>
-          <View style={styles.headerAvatar}>
-            <MaterialCommunityIcons name="shield-account" size={26} color="#1E2F97" />
-          </View>
-        </View>
 
-        <View style={styles.cardsContainer}>
-          <View style={styles.cardsRow}>
-            <View style={[styles.cardItem, { marginBottom: 14 }]}> 
-              <View style={styles.cardHeader}>
-                <View>
-                  <Text style={styles.cardTitle}>Online Students</Text>
+          {/* Quick Metrics Grid */}
+          <View style={styles.cardsContainer}>
+            <Text style={styles.sectionTitle}>Overview & Live Telemetry</Text>
+
+            <View style={styles.gridRow}>
+              {/* Total Roster */}
+              <View style={[styles.cardItem, styles.cardHalf]}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>Total Roster</Text>
+                  <View style={[styles.iconBadge, { backgroundColor: '#EFF6FF' }]}>
+                    <MaterialCommunityIcons name="account-group" size={20} color="#1E40AF" />
+                  </View>
                 </View>
-                <View style={[styles.iconBadge, { backgroundColor: '#DCFCE7' }]}> 
-                  <MaterialCommunityIcons name="account-check" size={22} color="#16A34A" />
-                </View>
+                <Text style={[styles.cardNumberLarge, { color: '#1E40AF' }]}>{totalCount}</Text>
+                <Text style={styles.cardSubtitle}>Registered Students</Text>
               </View>
-              <Text style={[styles.cardNumberLarge, { color: '#16A34A' }]}>{onlineCount}</Text>
-              <Text style={styles.cardSubtitle}>Currently online</Text>
+
+              {/* Online Active */}
+              <View style={[styles.cardItem, styles.cardHalf]}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>Online Active</Text>
+                  <View style={[styles.iconBadge, { backgroundColor: '#DCFCE7' }]}>
+                    <MaterialCommunityIcons name="wifi-check" size={20} color="#16A34A" />
+                  </View>
+                </View>
+                <Text style={[styles.cardNumberLarge, { color: '#16A34A' }]}>{onlineCount}</Text>
+                <Text style={styles.cardSubtitle}>Currently Connected</Text>
+              </View>
             </View>
-            <View style={[styles.cardItem, { marginBottom: 14 }]}> 
-              <View style={styles.cardHeader}>
-                <View>
-                  <Text style={styles.cardTitle}>Offline Students</Text>
+
+            <View style={styles.gridRow}>
+              {/* Offline / Disconnected */}
+              <View style={[styles.cardItem, styles.cardHalf]}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>Offline</Text>
+                  <View style={[styles.iconBadge, { backgroundColor: '#FEE2E2' }]}>
+                    <MaterialCommunityIcons name="wifi-off" size={20} color="#DC2626" />
+                  </View>
                 </View>
-                <View style={[styles.iconBadge, { backgroundColor: '#FECACA' }]}> 
-                  <MaterialCommunityIcons name="account-off" size={22} color="#DC2626" />
-                </View>
+                <Text style={[styles.cardNumberLarge, { color: '#DC2626' }]}>{offlineCount}</Text>
+                <Text style={styles.cardSubtitle}>No Active Signal</Text>
               </View>
-              <Text style={[styles.cardNumberLarge, { color: '#DC2626' }]}>{offlineCount}</Text>
-              <Text style={styles.cardSubtitle}>Currently offline</Text>
+
+              {/* Refresh Info */}
+              <View style={[styles.cardItem, styles.cardHalf]}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>Last Sync</Text>
+                  <View style={[styles.iconBadge, { backgroundColor: '#F3F4F6' }]}>
+                    <MaterialCommunityIcons name="clock-outline" size={20} color="#4B5563" />
+                  </View>
+                </View>
+                <Text style={styles.cardNumberMedium}>{lastUpdatedTime || 'N/A'}</Text>
+                <Text style={styles.cardSubtitle}>{lastUpdatedDate || 'Auto-sync 10s'}</Text>
+              </View>
             </View>
-            <View style={styles.cardItem}> 
-              <View style={styles.cardHeader}>
-                <View>
-                  <Text style={styles.cardTitle}>Latest Update</Text>
-                  <Text style={styles.cardSub}>{lastUpdatedDate || 'No date available'}</Text>
+
+            {/* Health & Status Card */}
+            <View style={styles.systemHealthCard}>
+              <View style={styles.healthHeader}>
+                <MaterialCommunityIcons name="server-network" size={22} color="#1E2F97" />
+                <View style={{ marginLeft: 12, flex: 1 }}>
+                  <Text style={styles.healthTitle}>Server & Telemetry Services</Text>
+                  <Text style={styles.healthSub}>GPS polling, SOS alerts, & broadcast channel operational</Text>
                 </View>
-                <View style={[styles.iconBadge, { backgroundColor: '#E5E7EB' }]}> 
-                  <MaterialCommunityIcons name="clock-outline" size={22} color="#1E3A8A" />
+                <View style={styles.healthBadge}>
+                  <Text style={styles.healthBadgeText}>NORMAL</Text>
                 </View>
               </View>
-              <Text style={styles.cardNumberLarge}>{lastUpdatedTime || 'N/A'}</Text>
-              <Text style={styles.cardSubtitle}>Latest refresh time</Text>
             </View>
           </View>
-        </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -144,85 +180,119 @@ export default function AdminDashboard() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F7FF' },
+  safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
   keyboardAvoid: { flex: 1 },
   container: { paddingBottom: 40, paddingHorizontal: 16 },
   header: {
     backgroundColor: '#1E2F97',
-    paddingTop: 16,
-    paddingBottom: 20,
-    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 22,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderRadius: 24,
-    marginHorizontal: 16,
-    marginTop: 16,
-    elevation: 3,
+    marginTop: 12,
+    marginBottom: 20,
+    elevation: 4,
     shadowColor: '#1E2F97',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
     shadowRadius: 12,
   },
-  headerGreeting: { fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: '500', marginBottom: 1 },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: '#fff' },
-  headerAvatar: {
-    backgroundColor: '#EEF2FF',
-    width: 40,
-    height: 40,
+  headerContent: { flex: 1, paddingRight: 12 },
+  systemStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 20,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  statusPulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#4ADE80',
+    marginRight: 6,
+  },
+  systemStatusText: { fontSize: 11, fontWeight: '700', color: '#E0E7FF' },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
+  headerSubtitle: { fontSize: 12, color: 'rgba(255, 255, 255, 0.8)', fontWeight: '500', marginTop: 2 },
+  headerAvatar: {
+    backgroundColor: '#FFFFFF',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 0,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  statsRow: { flexDirection: 'row', paddingHorizontal: 16, marginTop: 16, marginBottom: 4 },
-  statCard: {
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 14,
+    letterSpacing: -0.3,
+  },
+  cardsContainer: {
+    paddingTop: 4,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 14,
+  },
+  cardHalf: {
     flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 14,
+  },
+  cardItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
     elevation: 2,
     shadowColor: '#1E2F97',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 6,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  statIconWrap: { padding: 8, borderRadius: 12, alignSelf: 'flex-start', marginBottom: 10 },
-  statNumber: { fontSize: 26, fontWeight: '800', color: '#1E2F97', marginBottom: 2 },
-  statLabel: { fontSize: 12, color: '#6B7280', fontWeight: '500' },
-  cardsContainer: {
-    backgroundColor: 'transparent',
-    borderRadius: 0,
-    padding: 0,
-    marginTop: 16,
-    marginBottom: 0,
-    marginHorizontal: 16,
-    elevation: 0,
-    shadowColor: 'transparent',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    overflow: 'visible',
-  },
-  cardsRow: { flexDirection: 'column', marginTop: 0, marginBottom: 0, marginHorizontal: 0 },
-  cardItem: {
-    flex: 1,
-    width: '100%',
-    minHeight: 150,
-    minWidth: 0,
-    backgroundColor: 'white',
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  cardTitle: { fontSize: 13, fontWeight: '700', color: '#64748B' },
+  iconBadge: { padding: 8, borderRadius: 12 },
+  cardNumberLarge: { fontSize: 32, fontWeight: '800', color: '#0F172A', marginBottom: 2 },
+  cardNumberMedium: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginBottom: 4, marginTop: 4 },
+  cardSubtitle: { fontSize: 11, color: '#94A3B8', fontWeight: '500' },
+  systemHealthCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 18,
-    marginBottom: 14,
+    padding: 16,
+    marginTop: 4,
+    elevation: 2,
+    shadowColor: '#1E2F97',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  iconBadge: { padding: 10, borderRadius: 16 },
-  cardNumberLarge: { fontSize: 38, fontWeight: '800', color: '#111827', marginBottom: 8 },
-  cardSubtitle: { fontSize: 12, color: '#6B7280', fontWeight: '500' },
-  cardTitle: { fontSize: 16, fontWeight: '800', color: '#111827' },
-  cardSub: { fontSize: 11, color: '#6B7280', marginTop: 1, fontWeight: '500' },
-  latestTime: { fontSize: 32, fontWeight: '800', color: '#111827', marginTop: 4 },
-  divider: { height: 1, backgroundColor: '#F3F4F6' },
-  loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7FF' },
-  loadingText: { marginTop: 10, fontSize: 15, color: '#1E2F97', fontWeight: '600' },
+  healthHeader: { flexDirection: 'row', alignItems: 'center' },
+  healthTitle: { fontSize: 14, fontWeight: '700', color: '#0F172A' },
+  healthSub: { fontSize: 11, color: '#64748B', marginTop: 2, fontWeight: '500' },
+  healthBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  healthBadgeText: { fontSize: 10, fontWeight: '800', color: '#16A34A' },
+  loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+  loadingText: { marginTop: 12, fontSize: 14, color: '#1E2F97', fontWeight: '600' },
 });

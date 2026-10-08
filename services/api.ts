@@ -117,7 +117,18 @@ export const getRecentLocations = async () => {
 export const getStudentStatus = async (studentId: string | number) => {
   try {
     const locations = await getRecentLocations();
-    const studentLocation = locations.find((loc: any) => String(loc.student?.id) === String(studentId) || String(loc.student?.student_id) === String(studentId));
+    if (!Array.isArray(locations)) return null;
+
+    const target = String(studentId).toLowerCase().trim();
+    const studentLocation = locations.find((loc: any) => {
+      const locStudentId = String(loc.student_id || '').toLowerCase().trim();
+      const studentObjId = String(loc.student?.id || '').toLowerCase().trim();
+      const studentCode = String(loc.student?.student_id || '').toLowerCase().trim();
+      const rawId = String(loc.id || '').toLowerCase().trim();
+
+      return target === locStudentId || target === studentObjId || target === studentCode || target === rawId;
+    });
+
     return studentLocation || null;
   } catch (error) {
     console.error("❌ API Error: Fetch Student Status Failed", error);

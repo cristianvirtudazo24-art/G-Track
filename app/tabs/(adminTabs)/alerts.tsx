@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -281,40 +282,34 @@ export default function AdminAlertsScreen() {
 
   const renderStudentMessages = () => (
     <View style={styles.contentContainer}>
-      <View style={styles.classFilterSection}>
-        <TouchableOpacity
-          style={styles.classFilterButton}
-          onPress={() => setShowClassMenu(!showClassMenu)}
-        >
-          <Text style={styles.classFilterText}>Class: {selectedClass}</Text>
-          <MaterialCommunityIcons name={showClassMenu ? 'chevron-up' : 'chevron-down'} size={20} color="#1E2F97" />
-        </TouchableOpacity>
-
-        {showClassMenu && (
-          <View style={styles.classDropdown}>
-            {['All', '2026', '2027', '2028'].map((className) => (
-              <TouchableOpacity
-                key={className}
-                style={[styles.classDropdownItem, selectedClass === className && styles.classDropdownItemActive]}
-                onPress={() => handleClassSelect(className)}
-              >
-                <Text style={[styles.classDropdownText, selectedClass === className && styles.classDropdownTextActive]}>
-                  {className === 'All' ? 'All Classes' : `Class ${className}`}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+      {/* Class Filter Horizontal Pill Bar */}
+      <View style={styles.classFilterBarContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.classFilterScroll}>
+          {['All', '2026', '2027', '2028'].map((className) => (
+            <TouchableOpacity
+              key={className}
+              style={[styles.classChip, selectedClass === className && styles.classChipActive]}
+              onPress={() => handleClassSelect(className)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.classChipText, selectedClass === className && styles.classChipTextActive]}>
+                {className === 'All' ? 'All Classes' : `Class ${className}`}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#1E2F97" />
+          <Text style={styles.loadingText}>Loading student roster...</Text>
         </View>
       ) : filteredStudents.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <MaterialCommunityIcons name="account-off" size={40} color="#9CA3AF" />
+          <MaterialCommunityIcons name="account-off-outline" size={48} color="#94A3B8" />
           <Text style={styles.emptyText}>No students found</Text>
+          <Text style={styles.emptySubText}>There are no students listed under Class {selectedClass}</Text>
         </View>
       ) : (
         <FlatList
@@ -322,21 +317,32 @@ export default function AdminAlertsScreen() {
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={false}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.studentCard}
               onPress={() => handleStudentSelect(item)}
               activeOpacity={0.7}
             >
-              <View style={styles.studentAvatar}>
-                <MaterialCommunityIcons name="account-circle" size={32} color="#1E2F97" />
+              <View style={styles.avatarWrapper}>
+                <View style={styles.studentAvatar}>
+                  <Text style={styles.avatarInitial}>{(item.name || 'S').charAt(0).toUpperCase()}</Text>
+                </View>
+                <View style={[styles.onlineDot, { backgroundColor: item.status === 'online' ? '#16A34A' : '#94A3B8' }]} />
               </View>
+
               <View style={styles.studentInfo}>
-                <Text style={styles.studentName}>{item.name || 'Unknown'}</Text>
-                <Text style={styles.studentDetails}>ID: {item.student_id} • Class: {item.class}</Text>
+                <View style={styles.nameRow}>
+                  <Text style={styles.studentName} numberOfLines={1}>{item.name || 'Unknown Student'}</Text>
+                  <View style={styles.classPill}>
+                    <Text style={styles.classPillText}>Class {item.class || '—'}</Text>
+                  </View>
+                </View>
+                <Text style={styles.studentDetails}>ID: {item.student_id || item.id} • Tap to view chat</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#9CA3AF" />
+
+              <View style={styles.chevronWrapper}>
+                <MaterialCommunityIcons name="chevron-right" size={22} color="#94A3B8" />
+              </View>
             </TouchableOpacity>
           )}
         />
@@ -400,27 +406,36 @@ export default function AdminAlertsScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         style={styles.chatScreenContainer}
       >
-        <View style={styles.chatHeader}>
+        <View style={[styles.chatHeader, { paddingTop: Platform.OS === 'android' ? Math.max(insets.top, 12) : 12 }]}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={handleBackFromChat}
+            activeOpacity={0.7}
           >
-            <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
+            <MaterialCommunityIcons name="arrow-left" size={22} color="#1E2F97" />
           </TouchableOpacity>
-          <Text style={styles.chatHeaderTitle}>{selectedStudent.name || 'Student'}</Text>
-          <View style={styles.chatHeaderPlaceholder} />
+          
+          <View style={styles.chatHeaderTitleBlock}>
+            <Text style={styles.chatHeaderTitle} numberOfLines={1}>{selectedStudent.name || 'Student'}</Text>
+            <Text style={styles.chatHeaderSub}>Class {selectedStudent.class || '—'} • Direct Messages</Text>
+          </View>
+
+          <View style={styles.chatHeaderAvatar}>
+            <Text style={styles.chatAvatarText}>{(selectedStudent.name || 'S').charAt(0).toUpperCase()}</Text>
+          </View>
         </View>
 
         <View style={styles.messagesContainerWrapper}>
           {chatLoading && chatMessages.length === 0 ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#1E2F97" />
+              <Text style={styles.loadingText}>Fetching conversation...</Text>
             </View>
           ) : chatMessages.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <MaterialCommunityIcons name="chat-outline" size={48} color="#D1D5DB" />
+              <MaterialCommunityIcons name="forum-outline" size={48} color="#CBD5E1" />
               <Text style={styles.emptyText}>No messages yet</Text>
-              <Text style={styles.emptySubText}>Start a conversation with {selectedStudent.name}</Text>
+              <Text style={styles.emptySubText}>Send a direct message to {selectedStudent.name}</Text>
             </View>
           ) : (
             <FlatList
@@ -441,17 +456,16 @@ export default function AdminAlertsScreen() {
                 setIsUserScrolling(!isAtBottom);
               }}
               scrollEventThrottle={16}
-
             />
           )}
         </View>
 
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, { paddingBottom: Platform.OS === 'ios' ? Math.max(bottomInset, 10) : 10 }]}>
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
               placeholder="Type a message..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#94A3B8"
               value={newMessage}
               onChangeText={setNewMessage}
               multiline={true}
@@ -462,12 +476,12 @@ export default function AdminAlertsScreen() {
               style={[styles.sendButton, (!newMessage.trim() || sending) && styles.sendButtonDisabled]}
               onPress={handleSendMessage}
               disabled={!newMessage.trim() || sending}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
               {sending ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <MaterialCommunityIcons name="send" size={20} color="#fff" />
+                <MaterialCommunityIcons name="send" size={18} color="#fff" />
               )}
             </TouchableOpacity>
           </View>
@@ -478,30 +492,31 @@ export default function AdminAlertsScreen() {
 
   const renderBroadcastNotifications = () => (
     <View style={styles.contentContainer}>
+      {/* Compose CTA Button */}
       <TouchableOpacity
         style={styles.sendBroadcastButton}
         onPress={() => setShowBroadcastComposer(true)}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
-        <MaterialCommunityIcons name="plus" size={24} color="#fff" />
-        <Text style={styles.sendBroadcastButtonText}>Send New Broadcast</Text>
+        <MaterialCommunityIcons name="bullhorn-outline" size={22} color="#fff" />
+        <Text style={styles.sendBroadcastButtonText}>Compose New Announcement</Text>
       </TouchableOpacity>
 
       <View style={styles.broadcastHeaderContainer}>
-        <Text style={styles.broadcastTitle}>All Classes</Text>
-        <Text style={styles.broadcastDescription}>Broadcast Notifications History</Text>
-        <Text style={styles.broadcastSubtext}>Detailed log of all outbound school-wide announcements.</Text>
+        <Text style={styles.broadcastTitle}>Broadcast Notifications Log</Text>
+        <Text style={styles.broadcastSubtext}>Outbound announcements dispatched to student mobile devices.</Text>
       </View>
 
       {broadcastsLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#1E2F97" />
+          <Text style={styles.loadingText}>Loading broadcast logs...</Text>
         </View>
       ) : broadcasts.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <MaterialCommunityIcons name="broadcast-off" size={48} color="#D1D5DB" />
-          <Text style={styles.emptyText}>No broadcast notifications</Text>
-          <Text style={styles.emptySubText}>Broadcast announcements will appear here</Text>
+          <MaterialCommunityIcons name="broadcast-off" size={48} color="#CBD5E1" />
+          <Text style={styles.emptyText}>No broadcast announcements</Text>
+          <Text style={styles.emptySubText}>Dispatched announcements will be listed here</Text>
         </View>
       ) : (
         <FlatList
@@ -520,17 +535,19 @@ export default function AdminAlertsScreen() {
                   </View>
                 </View>
 
-                <Text style={styles.broadcastMessage} numberOfLines={2}>
+                <Text style={styles.broadcastMessage} numberOfLines={3}>
                   {item.message}
                 </Text>
 
                 <View style={styles.broadcastMetaRow}>
                   <View style={styles.broadcastMetaItem}>
+                    <MaterialCommunityIcons name="account-tie" size={14} color="#64748B" />
                     <Text style={styles.broadcastMetaLabel}>Sent by:</Text>
-                    <Text style={styles.broadcastMetaValue}>{item.sentBy}</Text>
+                    <Text style={styles.broadcastMetaValue}>{item.sentBy || 'Admin'}</Text>
                   </View>
 
                   <View style={styles.broadcastMetaItem}>
+                    <MaterialCommunityIcons name="account-group-outline" size={14} color="#64748B" />
                     <Text style={styles.broadcastMetaLabel}>Class:</Text>
                     <Text style={styles.broadcastMetaValue}>
                       {Array.isArray(item.targetClasses) && item.targetClasses.length > 0
@@ -543,21 +560,18 @@ export default function AdminAlertsScreen() {
                 </View>
 
                 <View style={styles.broadcastTimestampRow}>
-                  <MaterialCommunityIcons name="clock-outline" size={14} color="#6B7280" />
+                  <MaterialCommunityIcons name="clock-outline" size={14} color="#94A3B8" />
                   <Text style={styles.broadcastTimestamp}>
                     {new Date(item.timestamp).toLocaleString()}
                   </Text>
                 </View>
-
-                <TouchableOpacity style={styles.sentToAllButton}>
-                  <Text style={styles.sentToAllLink}>Sent to All</Text>
-                </TouchableOpacity>
               </View>
             </View>
           )}
         />
       )}
 
+      {/* Broadcast Composer Modal */}
       <Modal
         visible={showBroadcastComposer}
         animationType="slide"
@@ -567,11 +581,11 @@ export default function AdminAlertsScreen() {
         <SafeAreaView style={styles.composerContainer}>
           <View style={styles.composerHeader}>
             <View>
-              <Text style={styles.composerTitle}>Compose New Broadcast</Text>
-              <Text style={styles.composerSubtitle}>Prepare and send an announcement to students</Text>
+              <Text style={styles.composerTitle}>New Announcement</Text>
+              <Text style={styles.composerSubtitle}>Broadcast notification to student devices</Text>
             </View>
-            <TouchableOpacity onPress={handleCancelComposer}>
-              <MaterialCommunityIcons name="close" size={24} color="#1F2937" />
+            <TouchableOpacity onPress={handleCancelComposer} style={styles.closeModalButton}>
+              <MaterialCommunityIcons name="close" size={22} color="#0F172A" />
             </TouchableOpacity>
           </View>
 
@@ -587,12 +601,12 @@ export default function AdminAlertsScreen() {
                   onPress={() => setShowAudienceDropdown(!showAudienceDropdown)}
                 >
                   <Text style={styles.dropdownText}>
-                    {composerForm.targetAudience === 'all' ? 'All Students' : `Class ${composerForm.targetAudience}`}
+                    {composerForm.targetAudience === 'all' ? 'All Students (Entire Roster)' : `Class ${composerForm.targetAudience}`}
                   </Text>
                   <MaterialCommunityIcons 
                     name={showAudienceDropdown ? "chevron-up" : "chevron-down"} 
                     size={20} 
-                    color="#9CA3AF" 
+                    color="#64748B" 
                   />
                 </TouchableOpacity>
                 {showAudienceDropdown && (
@@ -618,7 +632,7 @@ export default function AdminAlertsScreen() {
                             composerForm.targetAudience === option && styles.dropdownMenuItemTextActive,
                           ]}
                         >
-                          {option === 'all' ? 'All Students' : `Class ${option}`}
+                          {option === 'all' ? 'All Students (Entire Roster)' : `Class ${option}`}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -628,11 +642,11 @@ export default function AdminAlertsScreen() {
             </View>
 
             <View style={styles.composerField}>
-              <Text style={styles.composerFieldLabel}>SUBJECT LINE</Text>
+              <Text style={styles.composerFieldLabel}>ANNOUNCEMENT TITLE</Text>
               <TextInput
                 style={styles.composerInput}
-                placeholder="Enter subject Title..."
-                placeholderTextColor="#9CA3AF"
+                placeholder="Enter title or subject..."
+                placeholderTextColor="#94A3B8"
                 value={composerForm.subjectLine}
                 onChangeText={(text) =>
                   setComposerForm((prev) => ({
@@ -645,11 +659,11 @@ export default function AdminAlertsScreen() {
             </View>
 
             <View style={styles.composerField}>
-              <Text style={styles.composerFieldLabel}>MESSAGE CONTENT (RICH TEXT)</Text>
+              <Text style={styles.composerFieldLabel}>MESSAGE CONTENT</Text>
               <TextInput
                 style={styles.composerMessageInput}
-                placeholder="Type your announcement here..."
-                placeholderTextColor="#9CA3AF"
+                placeholder="Type your official announcement here..."
+                placeholderTextColor="#94A3B8"
                 value={composerForm.messageContent}
                 onChangeText={(text) =>
                   setComposerForm((prev) => ({
@@ -667,6 +681,7 @@ export default function AdminAlertsScreen() {
                 style={[styles.sendAnnouncementButton, sendingBroadcast && styles.sendAnnouncementButtonDisabled]}
                 onPress={handleSendBroadcast}
                 disabled={sendingBroadcast}
+                activeOpacity={0.85}
               >
                 {sendingBroadcast ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -704,73 +719,52 @@ export default function AdminAlertsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      
+    <SafeAreaView style={[styles.safeArea, { paddingTop: Platform.OS === 'android' ? Math.max(insets.top, 12) : 0 }]}>
       {selectedStudent && viewMode === 'student_messages' ? (
         renderChatScreen()
       ) : (
         <>
+          {/* Main Top Header */}
           <View style={styles.header}>
-            <View>
-              <Text style={styles.headerTitle}>Notifications</Text>
-              <Text style={styles.headerSubtitle}>Send and manage notifications</Text>
+            <View style={styles.headerTitleRow}>
+              <MaterialCommunityIcons name="bell-ring" size={26} color="#FFF" />
+              <Text style={styles.headerTitle}>Communications</Text>
             </View>
+            <Text style={styles.headerSubtitle}>Student messaging center & campus broadcast engine</Text>
           </View>
 
-          <View style={styles.topBar}>
-            {viewMode && (
-              <Text style={styles.selectedLabel}>{getViewModeLabel()}</Text>
-            )}
+          {/* Segmented View Mode Switcher */}
+          <View style={styles.segmentedContainer}>
             <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => setShowMenu(!showMenu)}
+              style={[styles.segmentBtn, viewMode === 'student_messages' && styles.segmentBtnActive]}
+              onPress={() => setViewMode('student_messages')}
+              activeOpacity={0.8}
             >
-              <Text style={styles.addButtonText}>+</Text>
+              <MaterialCommunityIcons 
+                name="message-text" 
+                size={18} 
+                color={viewMode === 'student_messages' ? '#1E2F97' : '#64748B'} 
+              />
+              <Text style={[styles.segmentText, viewMode === 'student_messages' && styles.segmentTextActive]}>
+                Student Messages
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.segmentBtn, viewMode === 'broadcast_notifications' && styles.segmentBtnActive]}
+              onPress={() => setViewMode('broadcast_notifications')}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons 
+                name="bullhorn" 
+                size={18} 
+                color={viewMode === 'broadcast_notifications' ? '#1E2F97' : '#64748B'} 
+              />
+              <Text style={[styles.segmentText, viewMode === 'broadcast_notifications' && styles.segmentTextActive]}>
+                Broadcasts
+              </Text>
             </TouchableOpacity>
           </View>
-
-          {showMenu && (
-            <View style={styles.menuContainer}>
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => handleMenuItemPress('student_messages')}
-              >
-                <MaterialCommunityIcons name="message-text" size={20} color="#1E2F97" />
-                <Text style={styles.menuItemText}>Student Messages</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => handleMenuItemPress('broadcast_notifications')}
-              >
-                <MaterialCommunityIcons name="broadcast" size={20} color="#F97316" />
-                <Text style={styles.menuItemText}>Broadcast Notifications</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => setShowClassMenu(!showClassMenu)}
-              >
-                <MaterialCommunityIcons name="filter" size={20} color="#1E2F97" />
-                <Text style={styles.menuItemText}>Filter By Class</Text>
-                <MaterialCommunityIcons name={showClassMenu ? 'chevron-up' : 'chevron-down'} size={18} color="#9CA3AF" style={{ marginLeft: 'auto' }} />
-              </TouchableOpacity>
-
-              {showClassMenu && (
-                <View style={styles.classMenuContainer}>
-                  {['All', '2026', '2027', '2028'].map((className) => (
-                    <TouchableOpacity
-                      key={className}
-                      style={[styles.classMenuItem, selectedClass === className && styles.classMenuItemActive]}
-                      onPress={() => handleClassSelect(className)}
-                    >
-                      <Text style={[styles.classMenuItemText, selectedClass === className && styles.classMenuItemTextActive]}>
-                        {className === 'All' ? 'All Classes' : `Class ${className}`}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
 
           {renderContent()}
         </>
@@ -780,17 +774,24 @@ export default function AdminAlertsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F7FF' },
+  safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
   header: {
     backgroundColor: '#1E2F97',
-    paddingTop: 20,
-    paddingBottom: 24,
-    paddingHorizontal: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingTop: 18,
+    paddingBottom: 22,
+    paddingHorizontal: 20,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 24,
+    elevation: 4,
+    shadowColor: '#1E2F97',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
   },
-  headerTitle: { fontSize: 28, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.75)', fontWeight: '500' },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#fff', letterSpacing: -0.4 },
+  headerSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: 4 },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1453,4 +1454,77 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+  classFilterBarContainer: { marginBottom: 12 },
+  classFilterScroll: { gap: 8, paddingVertical: 4 },
+  classChip: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  classChipActive: {
+    backgroundColor: '#1E2F97',
+    borderColor: '#1E2F97',
+  },
+  classChipText: { fontSize: 12, fontWeight: '700', color: '#475569' },
+  classChipTextActive: { color: '#FFFFFF' },
+  avatarWrapper: { position: 'relative', marginRight: 14 },
+  avatarInitial: { fontSize: 18, fontWeight: '800', color: '#1E40AF' },
+  onlineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+  },
+  nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
+  classPill: { backgroundColor: '#F1F5F9', paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8 },
+  classPillText: { fontSize: 11, fontWeight: '700', color: '#475569' },
+  chevronWrapper: { paddingLeft: 6 },
+  chatHeaderTitleBlock: { flex: 1 },
+  chatHeaderSub: { fontSize: 11, color: '#64748B', fontWeight: '500', marginTop: 1 },
+  chatHeaderAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1E2F97',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatAvatarText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
+  segmentedContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 8,
+    padding: 4,
+    borderRadius: 16,
+  },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+  },
+  segmentBtnActive: {
+    backgroundColor: '#FFFFFF',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  segmentText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  segmentTextActive: { color: '#1E2F97', fontWeight: '800' },
+  closeModalButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  loadingText: { marginTop: 10, fontSize: 13, color: '#1E2F97', fontWeight: '600' },
 });

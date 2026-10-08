@@ -1,9 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getRecentLocations, getStudents } from '../../../services/api';
 
 export default function AdminActivityScreen() {
+  const insets = useSafeAreaInsets();
   const [students, setStudents] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -74,7 +76,7 @@ export default function AdminActivityScreen() {
     return (
       <View style={styles.loadingCenter}>
         <ActivityIndicator size="large" color="#1E2F97" />
-        <Text style={styles.loadingText}>Loading student activity...</Text>
+        <Text style={styles.loadingText}>Loading student activity logs...</Text>
       </View>
     );
   }
@@ -84,91 +86,133 @@ export default function AdminActivityScreen() {
 
     const history = getStudentLocationHistory(selectedStudent);
     const lastLocation = history[0];
+    const batteryVal = selectedStudent.battery ?? selectedStudent.battery_level;
 
     return (
       <View style={styles.detailContent}>
+        {/* Navigation & Header */}
         <View style={styles.detailHeaderRow}>
           <Pressable style={styles.topLeftBackButton} onPress={() => setSelectedStudent(null)}>
             <MaterialCommunityIcons name="arrow-left" size={20} color="#1E2F97" />
           </Pressable>
           <View style={styles.detailTextBlock}>
-            <Text style={styles.detailTitle}>{getStudentDisplayName(selectedStudent) || 'Student Details'}</Text>
-            <Text style={styles.detailSubtitle}>Timeline and student connection details</Text>
+            <Text style={styles.detailTitle}>{getStudentDisplayName(selectedStudent)}</Text>
+            <Text style={styles.detailSubtitle}>Student profile & connection telemetry</Text>
           </View>
         </View>
 
-        <View style={styles.detailHeader}>
-          <View>
-            <Text style={styles.detailSectionHeading}>Student overview</Text>
-          </View>
-        </View>
-
+        {/* Overview Grid Card */}
         <View style={styles.detailGrid}>
           <View style={styles.detailCard}>
+            <View style={styles.detailCardTitleRow}>
+              <MaterialCommunityIcons name="account-details" size={20} color="#1E2F97" />
+              <Text style={styles.detailCardHeading}>Student Overview</Text>
+            </View>
+
             <View style={styles.detailRow}>
-              <View>
+              <View style={styles.detailField}>
                 <Text style={styles.detailLabel}>STUDENT ID</Text>
                 <Text style={styles.detailValue}>{selectedStudent.student_id || selectedStudent.id || 'N/A'}</Text>
               </View>
-              <View>
+              <View style={styles.detailField}>
                 <Text style={styles.detailLabel}>CLASS</Text>
                 <View style={styles.classBadge}>
-                  <Text style={styles.classBadgeText}>{selectedStudent.class || '—'}</Text>
+                  <Text style={styles.classBadgeText}>{selectedStudent.class ? `Class ${selectedStudent.class}` : '—'}</Text>
                 </View>
               </View>
             </View>
 
             <View style={styles.detailRow}>
-              <View>
+              <View style={styles.detailField}>
                 <Text style={styles.detailLabel}>GENDER</Text>
                 <Text style={styles.detailValue}>{selectedStudent.gender || '—'}</Text>
               </View>
-              <View>
-                <Text style={styles.detailLabel}>CONTACT</Text>
+              <View style={styles.detailField}>
+                <Text style={styles.detailLabel}>CONTACT NUMBER</Text>
                 <Text style={styles.detailLink}>{selectedStudent.contact || selectedStudent.phone || 'N/A'}</Text>
               </View>
             </View>
 
             <View style={styles.detailRow}>
-              <View>
-                <Text style={styles.detailLabel}>BATTERY LEVEL</Text>
-                <View style={styles.batteryPill}>
-                  <Text style={styles.batteryText}>{selectedStudent.battery ?? selectedStudent.battery_level ?? '—'}%</Text>
+              <View style={styles.detailField}>
+                <Text style={styles.detailLabel}>BATTERY TELEMETRY</Text>
+                <View style={[
+                  styles.batteryPill,
+                  batteryVal !== undefined && batteryVal < 20 ? styles.batteryLow : batteryVal < 50 ? styles.batteryMed : styles.batteryHigh
+                ]}>
+                  <MaterialCommunityIcons 
+                    name={batteryVal !== undefined && batteryVal < 20 ? "battery-alert" : batteryVal < 50 ? "battery-50" : "battery-check"} 
+                    size={14} 
+                    color={batteryVal !== undefined && batteryVal < 20 ? "#DC2626" : batteryVal < 50 ? "#D97706" : "#15803D"} 
+                  />
+                  <Text style={[
+                    styles.batteryText,
+                    { color: batteryVal !== undefined && batteryVal < 20 ? "#DC2626" : batteryVal < 50 ? "#D97706" : "#15803D" }
+                  ]}>{batteryVal !== undefined && batteryVal !== null ? `${batteryVal}%` : '—'}</Text>
                 </View>
               </View>
-              <View>
+              <View style={styles.detailField}>
                 <Text style={styles.detailLabel}>SIGNAL STATUS</Text>
-                <Text style={styles.detailValue}>{selectedStudent.signal || (lastLocation ? lastLocation.signal || '—' : 'No signal')}</Text>
+                <View style={styles.signalBadge}>
+                  <MaterialCommunityIcons name="wifi" size={14} color="#1E2F97" />
+                  <Text style={styles.signalText}>{selectedStudent.signal || (lastLocation ? lastLocation.signal || 'Strong' : 'No signal')}</Text>
+                </View>
               </View>
             </View>
           </View>
         </View>
 
+        {/* Location Timeline */}
         <View style={styles.historyCard}>
           <View style={styles.historyTitleRow}>
-            <MaterialCommunityIcons name="history" size={20} color="#1E2F97" />
-            <Text style={styles.historyTitle}>Location History Logs</Text>
+            <MaterialCommunityIcons name="history" size={22} color="#1E2F97" />
+            <Text style={styles.historyTitle}>Location Logs & Timeline</Text>
           </View>
-          <Text style={styles.historySubtitle}>Scroll through previous GPS pings and timeline events.</Text>
+          <Text style={styles.historySubtitle}>Historical GPS pings and emergency activity records.</Text>
 
           {history.length > 0 ? (
-            history.map((item: any, index: number) => (
-              <View key={String(item.id ?? index)} style={styles.timelineRow}>
-                <View style={styles.timelineMeta}>
-                  <Text style={styles.timelineTime}>{new Date(item.recorded_at).toLocaleString()}</Text>
-                  <Text style={styles.timelineLocation}>{item.address || item.location || 'Unknown location'}</Text>
-                </View>
-                <View style={styles.timelineStatusRow}>
-                  <View style={[styles.statusBadge, { backgroundColor: item.status === 'safe' ? '#DCFCE7' : '#F3F4F6' }]}>
-                    <View style={[styles.statusDot, { backgroundColor: item.status === 'safe' ? '#059669' : '#9CA3AF' }]} />
-                    <Text style={[styles.statusText, { color: item.status === 'safe' ? '#059669' : '#9CA3AF' }]}>{item.status ? item.status.toUpperCase() : 'STATUS'}</Text>
+            history.map((item: any, index: number) => {
+              const isHelp = item.status === 'help' || item.status === 'emergency';
+              const isBlackout = item.status === 'blackout';
+              const isSafe = item.status === 'safe' || !item.status;
+
+              return (
+                <View key={String(item.id ?? index)} style={styles.timelineRow}>
+                  <View style={styles.timelineIconCol}>
+                    <View style={[
+                      styles.timelineDot,
+                      isHelp ? styles.dotRed : isBlackout ? styles.dotOrange : styles.dotGreen
+                    ]}>
+                      <MaterialCommunityIcons 
+                        name={isHelp ? "alert-circle" : isBlackout ? "flash-off" : "check-circle"} 
+                        size={14} 
+                        color="#FFF" 
+                      />
+                    </View>
+                    {index < history.length - 1 && <View style={styles.timelineLine} />}
+                  </View>
+                  <View style={styles.timelineMeta}>
+                    <Text style={styles.timelineTime}>{new Date(item.recorded_at).toLocaleString()}</Text>
+                    <Text style={styles.timelineLocation}>{item.address || item.location || 'Location Coordinates Logged'}</Text>
+                  </View>
+                  <View style={styles.timelineStatusRow}>
+                    <View style={[
+                      styles.statusBadge,
+                      { backgroundColor: isHelp ? '#FEE2E2' : isBlackout ? '#FFEDD5' : '#DCFCE7' }
+                    ]}>
+                      <Text style={[
+                        styles.statusText,
+                        { color: isHelp ? '#DC2626' : isBlackout ? '#C2410C' : '#15803D' }
+                      ]}>{item.status ? item.status.toUpperCase() : 'SAFE'}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))
+              );
+            })
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No location history available for this student.</Text>
+              <MaterialCommunityIcons name="map-marker-off" size={36} color="#CBD5E1" />
+              <Text style={styles.emptyStateText}>No recent location history for this student.</Text>
             </View>
           )}
         </View>
@@ -178,7 +222,7 @@ export default function AdminActivityScreen() {
 
   if (selectedStudent) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, { paddingTop: Platform.OS === 'android' ? Math.max(insets.top, 12) : 0 }]}>
         <ScrollView
           contentContainerStyle={styles.container}
           refreshControl={
@@ -193,7 +237,7 @@ export default function AdminActivityScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { paddingTop: Platform.OS === 'android' ? Math.max(insets.top, 12) : 0 }]}>
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
@@ -201,36 +245,62 @@ export default function AdminActivityScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Header Banner */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Student Activity</Text>
-          <Text style={styles.headerSubtitle}>Track the latest student status and history</Text>
+          <View style={styles.headerTitleRow}>
+            <MaterialCommunityIcons name="account-group" size={28} color="#FFF" />
+            <Text style={styles.headerTitle}>Student Activity</Text>
+          </View>
+          <Text style={styles.headerSubtitle}>Monitor student roster, connection status, & GPS history</Text>
         </View>
 
+        {/* Search Input Bar */}
         <View style={styles.searchCard}>
-          <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
+          <MaterialCommunityIcons name="magnify" size={20} color="#64748B" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by name, ID or class"
-            placeholderTextColor="#9CA3AF"
+            placeholder="Search by student name, ID or class..."
+            placeholderTextColor="#94A3B8"
             value={search}
             onChangeText={setSearch}
           />
+          {search ? (
+            <Pressable onPress={() => setSearch('')}>
+              <MaterialCommunityIcons name="close-circle" size={18} color="#94A3B8" />
+            </Pressable>
+          ) : null}
         </View>
 
+        {/* Metrics Bar */}
         <View style={styles.statsBar}>
           <View style={styles.statsItem}>
-            <Text style={styles.statsNumber}>{students.length}</Text>
-            <Text style={styles.statsLabel}>Students</Text>
+            <View style={[styles.statIconBadge, { backgroundColor: '#EFF6FF' }]}>
+              <MaterialCommunityIcons name="account-multiple" size={18} color="#1E40AF" />
+            </View>
+            <View>
+              <Text style={styles.statsNumber}>{students.length}</Text>
+              <Text style={styles.statsLabel}>Total Roster</Text>
+            </View>
           </View>
-          <View style={styles.divider} />
+          <View style={styles.statsDivider} />
           <View style={styles.statsItem}>
-            <Text style={styles.statsNumber}>{students.filter((s) => s.status === 'online').length}</Text>
-            <Text style={styles.statsLabel}>Online</Text>
+            <View style={[styles.statIconBadge, { backgroundColor: '#DCFCE7' }]}>
+              <MaterialCommunityIcons name="wifi-check" size={18} color="#16A34A" />
+            </View>
+            <View>
+              <Text style={styles.statsNumber}>{students.filter((s) => s.status === 'online').length}</Text>
+              <Text style={styles.statsLabel}>Online</Text>
+            </View>
           </View>
-          <View style={styles.divider} />
+          <View style={styles.statsDivider} />
           <View style={styles.statsItem}>
-            <Text style={styles.statsNumber}>{students.filter((s) => s.status === 'offline').length}</Text>
-            <Text style={styles.statsLabel}>Offline</Text>
+            <View style={[styles.statIconBadge, { backgroundColor: '#FEE2E2' }]}>
+              <MaterialCommunityIcons name="wifi-off" size={18} color="#DC2626" />
+            </View>
+            <View>
+              <Text style={styles.statsNumber}>{students.filter((s) => s.status === 'offline').length}</Text>
+              <Text style={styles.statsLabel}>Offline</Text>
+            </View>
           </View>
         </View>
 
@@ -241,12 +311,13 @@ export default function AdminActivityScreen() {
           </View>
         ) : null}
 
+        {/* Student Table */}
         <View style={styles.tableSection}>
           <View style={styles.tableSectionHeader}>
-            <MaterialCommunityIcons name="pulse" size={20} color="#1E2F97" />
-            <View style={{ marginLeft: 12 }}>
-              <Text style={styles.tableSectionTitle}>Student Activity Table</Text>
-              <Text style={styles.tableSectionSubtitle}>Real-time student connection status and details</Text>
+            <MaterialCommunityIcons name="table-account" size={22} color="#1E2F97" />
+            <View style={{ marginLeft: 10 }}>
+              <Text style={styles.tableSectionTitle}>Student Telemetry Directory</Text>
+              <Text style={styles.tableSectionSubtitle}>Real-time student status, battery levels, & location logs</Text>
             </View>
           </View>
 
@@ -257,46 +328,61 @@ export default function AdminActivityScreen() {
                 <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Student ID</Text>
                 <Text style={[styles.tableHeaderCell, { flex: 0.9 }]}>Class</Text>
                 <Text style={[styles.tableHeaderCell, { flex: 0.9 }]}>Gender</Text>
-                <Text style={[styles.tableHeaderCell, { flex: 0.9 }]}>Status</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Status</Text>
                 <Text style={[styles.tableHeaderCell, { flex: 0.9 }]}>Battery</Text>
-                <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>Signal</Text>
-                <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>Last Update</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1.1 }]}>Signal</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1.3 }]}>Last Update</Text>
                 <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>Contact</Text>
-                <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>Action</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1.2, textAlign: 'center' }]}>Action</Text>
               </View>
+
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((student, index) => {
                   const lastLocation = getLastLocation(student);
+                  const bat = student.battery ?? student.battery_level;
+
                   return (
                     <View key={String(student.student_id ?? student.id ?? index)} style={[styles.tableRow, index % 2 === 0 && styles.tableRowEven]}>
-                      <Text style={[styles.tableCell, { flex: 1.4 }]} numberOfLines={1}>{getStudentDisplayName(student)}</Text>
-                      <Text style={[styles.tableCell, { flex: 1 }]} numberOfLines={1}>{student.student_id || student.id || 'N/A'}</Text>
+                      <Text style={[styles.tableCellBold, { flex: 1.4 }]} numberOfLines={1}>{getStudentDisplayName(student)}</Text>
+                      <Text style={[styles.tableCellCode, { flex: 1 }]} numberOfLines={1}>{student.student_id || student.id || 'N/A'}</Text>
                       <Text style={[styles.tableCell, { flex: 0.9 }]} numberOfLines={1}>{student.class || '—'}</Text>
                       <Text style={[styles.tableCell, { flex: 0.9 }]} numberOfLines={1}>{student.gender || '—'}</Text>
-                      <View style={[styles.statusBadge, { flex: 0.9, backgroundColor: student.status === 'online' ? '#DCFCE7' : '#F3F4F6' }]}>
-                        <View style={[styles.statusDot, { backgroundColor: student.status === 'online' ? '#059669' : '#9CA3AF' }]} />
-                        <Text style={[styles.statusText, { color: student.status === 'online' ? '#059669' : '#9CA3AF' }]}>
-                          {student.status === 'online' ? 'Online' : 'Offline'}
-                        </Text>
+                      
+                      <View style={{ flex: 1, paddingHorizontal: 4 }}>
+                        <View style={[styles.statusBadge, { backgroundColor: student.status === 'online' ? '#DCFCE7' : '#F1F5F9' }]}>
+                          <View style={[styles.statusDot, { backgroundColor: student.status === 'online' ? '#16A34A' : '#94A3B8' }]} />
+                          <Text style={[styles.statusText, { color: student.status === 'online' ? '#15803D' : '#64748B' }]}>
+                            {student.status === 'online' ? 'Online' : 'Offline'}
+                          </Text>
+                        </View>
                       </View>
-                      <Text style={[styles.tableCell, { flex: 0.9 }]} numberOfLines={1}>{student.battery ?? student.battery_level ?? '—'}%</Text>
-                      <Text style={[styles.tableCell, { flex: 1.2 }]} numberOfLines={1}>{student.signal || '—'}</Text>
-                      <Text style={[styles.tableCell, { flex: 1.2 }]} numberOfLines={1}>{lastLocation ? new Date(lastLocation.recorded_at).toLocaleString() : 'No update'}</Text>
+
+                      <Text style={[styles.tableCell, { flex: 0.9 }]} numberOfLines={1}>
+                        {bat !== undefined && bat !== null ? `${bat}%` : '—'}
+                      </Text>
+                      <Text style={[styles.tableCell, { flex: 1.1 }]} numberOfLines={1}>{student.signal || '—'}</Text>
+                      <Text style={[styles.tableCellMuted, { flex: 1.3 }]} numberOfLines={1}>
+                        {lastLocation ? new Date(lastLocation.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'No pings'}
+                      </Text>
                       <Text style={[styles.tableCell, { flex: 1.2 }]} numberOfLines={1}>{student.contact || student.phone || '—'}</Text>
-                      <Pressable style={[styles.viewHistoryButton, { flex: 1.2, minWidth: 0, paddingHorizontal: 10 }]} onPress={() => setSelectedStudent(student)}>
-                        <Text style={styles.viewHistoryButtonText}>View History</Text>
-                      </Pressable>
+                      
+                      <View style={{ flex: 1.2, alignItems: 'center' }}>
+                        <Pressable style={styles.viewHistoryButton} onPress={() => setSelectedStudent(student)}>
+                          <Text style={styles.viewHistoryButtonText}>History</Text>
+                          <MaterialCommunityIcons name="chevron-right" size={14} color="#FFF" />
+                        </Pressable>
+                      </View>
                     </View>
                   );
                 })
               ) : (
                 <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No students match your filter.</Text>
+                  <MaterialCommunityIcons name="account-search-outline" size={32} color="#94A3B8" />
+                  <Text style={styles.emptyStateText}>No students match your filter criteria.</Text>
                 </View>
               )}
             </View>
           </ScrollView>
-
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -304,120 +390,145 @@ export default function AdminActivityScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F7FF' },
-  container: { paddingTop: 22, paddingBottom: 40 },
+  safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { paddingTop: 12, paddingBottom: 40 },
   header: {
     backgroundColor: '#1E2F97',
-    margin: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
     borderRadius: 24,
     padding: 20,
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
+    elevation: 4,
+    shadowColor: '#1E2F97',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
   },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: '#fff' },
-  headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 6, lineHeight: 19 },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#fff', letterSpacing: -0.4 },
+  headerSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 6, fontWeight: '500' },
   searchCard: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
-    borderRadius: 18,
-    paddingHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 16,
+    paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     elevation: 2,
     shadowColor: '#1E2F97',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  searchInput: { marginLeft: 10, flex: 1, color: '#111827', fontSize: 15 },
+  searchInput: { marginLeft: 10, flex: 1, color: '#0F172A', fontSize: 14, fontWeight: '500' },
   statsBar: {
-    margin: 16,
+    marginHorizontal: 16,
+    marginTop: 14,
     backgroundColor: '#fff',
     borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     elevation: 2,
     shadowColor: '#1E2F97',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  statsItem: { flex: 1, alignItems: 'center' },
-  statsNumber: { fontSize: 20, fontWeight: '800', color: '#111827' },
-  statsLabel: { fontSize: 12, color: '#6B7280', marginTop: 4 },
-  divider: { width: 1, height: 40, backgroundColor: '#E5E7EB' },
+  statsItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  statIconBadge: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  statsNumber: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
+  statsLabel: { fontSize: 11, color: '#64748B', fontWeight: '500' },
+  statsDivider: { width: 1, height: 30, backgroundColor: '#E2E8F0' },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    backgroundColor: '#E8313A',
-    borderRadius: 16,
+    marginTop: 12,
+    backgroundColor: '#DC2626',
+    borderRadius: 14,
     padding: 12,
-    marginBottom: 12,
   },
-  errorText: { color: '#fff', marginLeft: 10, flex: 1, fontSize: 13 },
-  tableSection: { marginHorizontal: 16, marginTop: 30 },
-  tableSectionHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  tableSectionTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
-  tableSectionSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2, fontWeight: '500' },
+  errorText: { color: '#fff', marginLeft: 10, flex: 1, fontSize: 13, fontWeight: '500' },
+  tableSection: { marginHorizontal: 16, marginTop: 24 },
+  tableSectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  tableSectionTitle: { fontSize: 17, fontWeight: '800', color: '#0F172A' },
+  tableSectionSubtitle: { fontSize: 12, color: '#64748B', marginTop: 1, fontWeight: '500' },
   tableContainer: {
     backgroundColor: '#fff',
-    borderRadius: 18,
+    borderRadius: 20,
     overflow: 'hidden',
     elevation: 2,
     shadowColor: '#1E2F97',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.05,
     shadowRadius: 10,
-    minWidth: 900,
+    minWidth: 920,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  tableHeader: { flexDirection: 'row', backgroundColor: '#F9FAFB', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingHorizontal: 12, paddingVertical: 12 },
-  tableHeaderCell: { fontSize: 12, fontWeight: '700', color: '#1F2937', textAlign: 'left', paddingHorizontal: 6 },
-  tableRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', alignItems: 'center' },
-  tableRowEven: { backgroundColor: '#FAFBFC' },
-  tableCell: { fontSize: 12, color: '#374151', fontWeight: '500', paddingHorizontal: 6 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' },
-  statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
-  statusText: { fontSize: 11, fontWeight: '600' },
-  emptyState: { paddingVertical: 40, justifyContent: 'center', alignItems: 'center' },
-  emptyStateText: { fontSize: 14, color: '#9CA3AF', fontWeight: '500' },
-  backButton: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 18, paddingVertical: 8, paddingHorizontal: 14, backgroundColor: '#EFF6FF', borderRadius: 16 },
-  backButtonText: { color: '#1E2F97', marginLeft: 8, fontWeight: '700' },
-  detailContent: { paddingBottom: 40, marginTop: 8 },
-  detailHeader: { marginHorizontal: 16, marginBottom: 18 },
-  detailHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', marginHorizontal: 16, marginTop: 6, marginBottom: 18 },
-  topLeftBackButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  detailTextBlock: { paddingTop: 4 },
-  detailTitle: { fontSize: 22, fontWeight: '800', color: '#111827' },
-  detailSectionHeading: { fontSize: 15, color: '#6B7280', fontWeight: '700' },
-  detailSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 10 },
-  detailGrid: { marginHorizontal: 16 },
-  detailCard: { backgroundColor: '#fff', borderRadius: 22, padding: 18, elevation: 2, shadowColor: '#1E2F97', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, marginBottom: 18 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 16 },
-  detailLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '700', marginBottom: 6 },
-  detailValue: { fontSize: 15, color: '#111827', fontWeight: '700' },
-  detailLink: { fontSize: 15, color: '#1E40AF', fontWeight: '700' },
-  classBadge: { backgroundColor: '#EFF6FF', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, alignSelf: 'flex-start' },
-  classBadgeText: { color: '#1E40AF', fontWeight: '800' },
-  batteryPill: { backgroundColor: '#ECFDF5', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, alignSelf: 'flex-start' },
-  batteryText: { color: '#15803D', fontWeight: '800' },
-  historyCard: { backgroundColor: '#fff', borderRadius: 22, padding: 18, elevation: 2, shadowColor: '#1E2F97', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, marginHorizontal: 16 },
-  historyTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  historyTitle: { fontSize: 16, fontWeight: '800', color: '#111827', marginLeft: 10 },
-  historySubtitle: { fontSize: 13, color: '#6B7280', marginBottom: 14 },
-  timelineRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#F3F4F6', alignItems: 'center' },
-  timelineMeta: { flex: 1, marginRight: 12 },
-  timelineTime: { fontSize: 12, color: '#6B7280', fontWeight: '700', marginBottom: 4 },
-  timelineLocation: { fontSize: 14, color: '#111827', fontWeight: '600' },
-  timelineStatusRow: { alignItems: 'flex-end' },
-  viewHistoryButton: { backgroundColor: '#1E40AF', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  tableActionCell: { flex: 0.8, backgroundColor: '#EFF6FF', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 6, minWidth: 90 },
-  tableActionText: { color: '#1E40AF', fontSize: 12, fontWeight: '700' },
-  viewHistoryButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7FF' },
-  loadingText: { marginTop: 12, color: '#1E2F97', fontSize: 15, fontWeight: '600' },
+  tableHeader: { flexDirection: 'row', backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#E2E8F0', paddingHorizontal: 12, paddingVertical: 12 },
+  tableHeaderCell: { fontSize: 11, fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: 0.3, paddingHorizontal: 6 },
+  tableRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', alignItems: 'center' },
+  tableRowEven: { backgroundColor: '#FAFAFA' },
+  tableCell: { fontSize: 12, color: '#334155', fontWeight: '500', paddingHorizontal: 6 },
+  tableCellBold: { fontSize: 13, color: '#0F172A', fontWeight: '700', paddingHorizontal: 6 },
+  tableCellCode: { fontSize: 12, color: '#1E40AF', fontWeight: '700', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', paddingHorizontal: 6 },
+  tableCellMuted: { fontSize: 11, color: '#64748B', fontWeight: '500', paddingHorizontal: 6 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, justifyContent: 'center' },
+  statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
+  statusText: { fontSize: 11, fontWeight: '700' },
+  emptyState: { paddingVertical: 36, justifyContent: 'center', alignItems: 'center', width: '100%' },
+  emptyStateText: { fontSize: 13, color: '#94A3B8', fontWeight: '500', marginTop: 8 },
+  detailContent: { paddingBottom: 40, paddingTop: 4 },
+  detailHeaderRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 18 },
+  topLeftBackButton: { width: 40, height: 40, borderRadius: 14, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', marginRight: 12, borderWidth: 1, borderColor: '#DBEAFE' },
+  detailTextBlock: { flex: 1 },
+  detailTitle: { fontSize: 22, fontWeight: '800', color: '#0F172A', letterSpacing: -0.4 },
+  detailSubtitle: { fontSize: 12, color: '#64748B', marginTop: 2, fontWeight: '500' },
+  detailGrid: { marginHorizontal: 16, marginBottom: 16 },
+  detailCard: { backgroundColor: '#fff', borderRadius: 20, padding: 18, elevation: 2, shadowColor: '#1E2F97', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' },
+  detailCardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  detailCardHeading: { fontSize: 15, fontWeight: '800', color: '#0F172A' },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, marginBottom: 14 },
+  detailField: { flex: 1 },
+  detailLabel: { fontSize: 10, color: '#94A3B8', fontWeight: '700', letterSpacing: 0.5, marginBottom: 4 },
+  detailValue: { fontSize: 14, color: '#0F172A', fontWeight: '700' },
+  detailLink: { fontSize: 14, color: '#1E40AF', fontWeight: '700' },
+  classBadge: { backgroundColor: '#EFF6FF', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10, alignSelf: 'flex-start' },
+  classBadgeText: { color: '#1E40AF', fontWeight: '800', fontSize: 12 },
+  batteryPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10, alignSelf: 'flex-start' },
+  batteryHigh: { backgroundColor: '#DCFCE7' },
+  batteryMed: { backgroundColor: '#FEF3C7' },
+  batteryLow: { backgroundColor: '#FEE2E2' },
+  batteryText: { fontWeight: '800', fontSize: 12 },
+  signalBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F1F5F9', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10, alignSelf: 'flex-start' },
+  signalText: { color: '#1E2F97', fontWeight: '700', fontSize: 12 },
+  historyCard: { backgroundColor: '#fff', borderRadius: 20, padding: 18, elevation: 2, shadowColor: '#1E2F97', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, marginHorizontal: 16, borderWidth: 1, borderColor: '#E2E8F0' },
+  historyTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  historyTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  historySubtitle: { fontSize: 12, color: '#64748B', marginBottom: 16, fontWeight: '500' },
+  timelineRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12 },
+  timelineIconCol: { width: 30, alignItems: 'center', marginRight: 8 },
+  timelineDot: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  dotGreen: { backgroundColor: '#16A34A' },
+  dotRed: { backgroundColor: '#DC2626' },
+  dotOrange: { backgroundColor: '#EA580C' },
+  timelineLine: { width: 2, height: 36, backgroundColor: '#E2E8F0', marginTop: 4 },
+  timelineMeta: { flex: 1, paddingRight: 8 },
+  timelineTime: { fontSize: 11, color: '#64748B', fontWeight: '700', marginBottom: 2 },
+  timelineLocation: { fontSize: 13, color: '#0F172A', fontWeight: '600', lineHeight: 18 },
+  timelineStatusRow: { justifyContent: 'flex-start' },
+  viewHistoryButton: { backgroundColor: '#1E2F97', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  viewHistoryButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+  loadingText: { marginTop: 12, color: '#1E2F97', fontSize: 14, fontWeight: '600' },
 });
+

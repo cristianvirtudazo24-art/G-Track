@@ -5,6 +5,8 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 interface Props {
   isVisible: boolean;
   type: 'help' | 'safe' | 'blackout' | null;
+  customTitle?: string;
+  customSub?: string;
   onClose: () => void;
 }
 
@@ -14,9 +16,12 @@ const INFO: Record<string, { icon: string; color: string; bg: string; label: str
   blackout: { icon: 'lightning-bolt', color: '#F97316', bg: '#FFF7ED', label: 'Blackout Reported!', sub: 'Admin has been notified of power loss.' },
 };
 
-export const StatusSuccessModal = ({ isVisible, type, onClose }: Props) => {
+export const StatusSuccessModal = ({ isVisible, type, customTitle, customSub, onClose }: Props) => {
   const info = type ? INFO[type] : null;
   if (!info) return null;
+
+  const displayTitle = customTitle || info.label;
+  const displaySub = customSub || info.sub;
 
   return (
     <Modal visible={isVisible} transparent animationType="fade">
@@ -25,8 +30,8 @@ export const StatusSuccessModal = ({ isVisible, type, onClose }: Props) => {
           <View style={[styles.iconCircle, { backgroundColor: info.bg }]}>
             <MaterialCommunityIcons name={info.icon as any} size={40} color={info.color} />
           </View>
-          <Text style={styles.title}>{info.label}</Text>
-          <Text style={styles.sub}>{info.sub}</Text>
+          <Text style={styles.title}>{displayTitle}</Text>
+          <Text style={styles.sub}>{displaySub}</Text>
           <TouchableOpacity style={[styles.btn, { backgroundColor: info.color }]} onPress={onClose} activeOpacity={0.85}>
             <Text style={styles.btnText}>Dismiss</Text>
           </TouchableOpacity>
