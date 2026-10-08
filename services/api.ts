@@ -1,5 +1,5 @@
-import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import * as FileSystem from 'expo-file-system/legacy';
 import { API_BASE_URL, API_TIMEOUT } from '../constants/Network';
 import { BlackoutAlert, ChatMessage, SOSAlertVideo } from '../types/index';
@@ -599,8 +599,11 @@ export const getSosAlerts = async (): Promise<SOSAlertVideo[]> => {
       })
     );
 
-    // console.log('🚨 [getSosAlerts] Returning', result.length, 'SOS alerts with resolved video URLs');
-    return result;
+    // Admin SOS cards must represent uploaded video alerts only. Location records
+    // without a matching video notification are not shown as empty video cards.
+    const videoAlerts = result.filter((alert) => Boolean(alert.videoUrl));
+    // console.log('🚨 [getSosAlerts] Returning', videoAlerts.length, 'SOS alerts with resolved video URLs');
+    return videoAlerts;
   } catch (error: any) {
     console.error("🚨 [getSosAlerts] API Error, using mock fallback", error.message || error);
     return MOCK_LOCATIONS

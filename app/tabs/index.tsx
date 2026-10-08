@@ -2,10 +2,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Dimensions, Image, ImageBackground, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ActivityIndicator, Dimensions, Image, ImageBackground, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Colors, Shadows, Spacing, Typography } from '../../constants/theme';
 import { useLocation } from '../../hooks/useLocation';
 import { login } from '../../services/auth';
+import { TermsModal } from '../../components/TermsModal';
+import { ForgotPasswordModal } from '../../components/ForgotPasswordModal';
 
 const { width } = Dimensions.get('window');
 
@@ -18,16 +20,43 @@ export default function LoginScreen() {
   const [studentId, setStudentId] = useState('');
   const [role, setRole] = useState<'student' | 'admin'>('student');
   const [showPassword, setShowPassword] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ identifier: boolean; password: boolean }>({
+    identifier: false,
+    password: false,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const clearErrors = () => {
+    setErrorMessage(null);
+    setFieldErrors({ identifier: false, password: false });
+  };
+
+  const handleRoleChange = (newRole: 'student' | 'admin') => {
+    setRole(newRole);
+    clearErrors();
+  };
 
   const handleSignIn = async () => {
+    clearErrors();
     const isStudent = role === 'student';
     const identifier = isStudent ? studentId : adminId;
 
-    if (!identifier || !password) {
-      Alert.alert("Error", `Please fill in your ${isStudent ? 'Student ID' : 'Staff ID'} and Password`);
+    const hasIdError = !identifier.trim();
+    const hasPassError = !password.trim();
+
+    if (hasIdError || hasPassError) {
+      setFieldErrors({
+        identifier: hasIdError,
+        password: hasPassError,
+      });
+      setErrorMessage(`Please enter your ${isStudent ? 'Student ID' : 'Staff ID'} and Password.`);
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const response: any = await login(
         isStudent ? "" : adminId, 
@@ -66,9 +95,15 @@ export default function LoginScreen() {
         } else {
           router.replace('/tabs/home');
         }
+      } else {
+        setFieldErrors({ identifier: true, password: true });
+        setErrorMessage(response.message || "Invalid credentials. Please check your ID and Password.");
       }
     } catch (error: any) {
-      Alert.alert("Login Failed", error.message || "Invalid credentials.");
+      setFieldErrors({ identifier: true, password: true });
+      setErrorMessage(error.message || "Invalid credentials. Please check your ID and Password.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -104,61 +139,103 @@ export default function LoginScreen() {
             <View style={styles.roleSelector}>
               <TouchableOpacity 
                 style={[styles.roleButton, role === 'student' && styles.roleButtonActive]} 
-                onPress={() => setRole('student')}
+                onPress={() => handleRoleChange('student')}
                 activeOpacity={0.8}
               >
                 <Text style={[styles.roleButtonText, role === 'student' && styles.roleButtonTextActive]}>Student</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.roleButton, role === 'admin' && styles.roleButtonActive]} 
-                onPress={() => setRole('admin')}
+                onPress={() => handleRoleChange('admin')}
                 activeOpacity={0.8}
               >
                 <Text style={[styles.roleButtonText, role === 'admin' && styles.roleButtonTextActive]}>Admin</Text>
               </TouchableOpacity>
             </View>
 
+            {/* Error Banner Notice */}
+            {errorMessage ? (
+              <View style={styles.errorBanner}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={20} color="#DC2626" style={styles.errorBannerIcon} />
+                <Text style={styles.errorBannerText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             {/* Input fields */}
             {role === 'admin' ? (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Staff ID</Text>
-                <View style={styles.inputContainer}>
-                  <MaterialCommunityIcons name="shield-account-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <Text style={[styles.label, fieldErrors.identifier && styles.labelError]}>Staff ID</Text>
+                <View style={[styles.inputContainer, fieldErrors.identifier && styles.inputContainerError]}>
+                  <MaterialCommunityIcons 
+                    name="shield-account-outline" 
+                    size={20} 
+                    color={fieldErrors.identifier ? '#EF4444' : '#9CA3AF'} 
+                    style={styles.inputIcon} 
+                  />
                   <TextInput
                     style={styles.input}
                     value={adminId}
-                    onChangeText={setAdminId}
+                    onChangeText={(val) => {
+                      setAdminId(val);
+                      if (errorMessage || fieldErrors.identifier) clearErrors();
+                    }}
                     placeholder="Enter your Staff ID"
                     placeholderTextColor="#9CA3AF"
                     autoCapitalize="none"
                   />
                 </View>
+                {fieldErrors.identifier && (
+                  <Text style={styles.fieldErrorText}>
+                    {adminId.trim() ? 'Invalid Staff ID' : 'Staff ID is required'}
+                  </Text>
+                )}
               </View>
             ) : (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Student ID</Text>
-                <View style={styles.inputContainer}>
-                  <MaterialCommunityIcons name="card-account-details-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <Text style={[styles.label, fieldErrors.identifier && styles.labelError]}>Student ID</Text>
+                <View style={[styles.inputContainer, fieldErrors.identifier && styles.inputContainerError]}>
+                  <MaterialCommunityIcons 
+                    name="card-account-details-outline" 
+                    size={20} 
+                    color={fieldErrors.identifier ? '#EF4444' : '#9CA3AF'} 
+                    style={styles.inputIcon} 
+                  />
                   <TextInput
                     style={styles.input}
                     value={studentId}
-                    onChangeText={setStudentId}
+                    onChangeText={(val) => {
+                      setStudentId(val);
+                      if (errorMessage || fieldErrors.identifier) clearErrors();
+                    }}
                     placeholder="Enter your Student ID"
                     placeholderTextColor="#9CA3AF"
                     autoCapitalize="characters"
                   />
                 </View>
+                {fieldErrors.identifier && (
+                  <Text style={styles.fieldErrorText}>
+                    {studentId.trim() ? 'Invalid Student ID' : 'Student ID is required'}
+                  </Text>
+                )}
               </View>
             )}
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.inputContainer}>
-                <MaterialCommunityIcons name="lock-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
+              <Text style={[styles.label, fieldErrors.password && styles.labelError]}>Password</Text>
+              <View style={[styles.inputContainer, fieldErrors.password && styles.inputContainerError]}>
+                <MaterialCommunityIcons 
+                  name="lock-outline" 
+                  size={20} 
+                  color={fieldErrors.password ? '#EF4444' : '#9CA3AF'} 
+                  style={styles.inputIcon} 
+                />
                 <TextInput
                   style={styles.input}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(val) => {
+                    setPassword(val);
+                    if (errorMessage || fieldErrors.password) clearErrors();
+                  }}
                   secureTextEntry={!showPassword}
                   placeholder="Enter your password"
                   placeholderTextColor="#9CA3AF"
@@ -172,24 +249,64 @@ export default function LoginScreen() {
                   <MaterialCommunityIcons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
-                    color="#9CA3AF"
+                    color={fieldErrors.password ? '#EF4444' : '#9CA3AF'}
                   />
                 </TouchableOpacity>
               </View>
+              {fieldErrors.password && (
+                <Text style={styles.fieldErrorText}>
+                  {password.trim() ? 'Invalid Password' : 'Password is required'}
+                </Text>
+              )}
             </View>
 
             {/* Login Button */}
-            <TouchableOpacity style={styles.button} onPress={handleSignIn} activeOpacity={0.85}>
-              <Text style={styles.buttonText}>Login</Text>
+            <TouchableOpacity 
+              style={[styles.button, isSubmitting && styles.buttonDisabled]} 
+              onPress={handleSignIn} 
+              activeOpacity={0.85}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.buttonText}>Login</Text>
+              )}
             </TouchableOpacity>
 
             {/* Forgot Password Link */}
-            <TouchableOpacity style={styles.forgotButton} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={styles.forgotButton} 
+              onPress={() => setShowForgotPassword(true)}
+              activeOpacity={0.7}
+            >
               <Text style={styles.forgotText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
+            {/* Terms & Conditions Notice */}
+            <TouchableOpacity 
+              style={styles.termsNoticeButton} 
+              onPress={() => setShowTerms(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.termsNoticeText}>
+                By logging in, you agree to our{' '}
+                <Text style={styles.termsLinkText}>Terms & Conditions</Text>
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <TermsModal
+        visible={showTerms}
+        onClose={() => setShowTerms(false)}
+      />
+
+      <ForgotPasswordModal
+        visible={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+      />
     </ImageBackground>
   );
 }
@@ -272,6 +389,27 @@ const styles = StyleSheet.create({
   roleButtonTextActive: {
     color: '#FFFFFF',
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 20,
+  },
+  errorBannerIcon: {
+    marginRight: 10,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#991B1B',
+    lineHeight: 18,
+  },
   inputGroup: {
     marginBottom: 20,
   },
@@ -280,6 +418,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1E2F97',
     marginBottom: 8,
+  },
+  labelError: {
+    color: '#DC2626',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -290,6 +431,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     height: 56,
     paddingHorizontal: 16,
+  },
+  inputContainerError: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+  },
+  fieldErrorText: {
+    fontSize: 12,
+    color: '#DC2626',
+    fontWeight: '600',
+    marginTop: 6,
+    marginLeft: 4,
   },
   inputIcon: {
     marginRight: 10,
@@ -319,6 +472,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
   },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
   buttonText: {
     color: '#FFFFFF',
     fontWeight: '800',
@@ -326,11 +482,27 @@ const styles = StyleSheet.create({
   },
   forgotButton: {
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 16,
   },
   forgotText: {
     color: '#1E2F97',
     fontSize: 14,
     fontWeight: '700',
+  },
+  termsNoticeButton: {
+    alignItems: 'center',
+    marginTop: 20,
+    paddingHorizontal: 12,
+  },
+  termsNoticeText: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  termsLinkText: {
+    color: '#1E2F97',
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });

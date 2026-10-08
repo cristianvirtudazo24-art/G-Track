@@ -1,10 +1,12 @@
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, SafeAreaView } from 'react-native';
+import { TermsModal } from '../../../components/TermsModal';
 
 export default function AdminSettings() {
   const router = useRouter();
+  const [showTerms, setShowTerms] = useState(false);
 
   const handleSignOut = () => {
     router.replace('/tabs');
@@ -39,11 +41,11 @@ export default function AdminSettings() {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>App</Text>
-          <TouchableOpacity style={styles.item} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.item} onPress={() => setShowTerms(true)} activeOpacity={0.7}>
             <View style={styles.itemIconWrap}>
               <MaterialCommunityIcons name="shield-lock-outline" size={20} color="#1E2F97" />
             </View>
-            <Text style={styles.itemText}>Privacy & Security</Text>
+            <Text style={styles.itemText}>Terms & Privacy Policy</Text>
             <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
           </TouchableOpacity>
           <View style={styles.divider} />
@@ -61,6 +63,11 @@ export default function AdminSettings() {
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <TermsModal
+        visible={showTerms}
+        onClose={() => setShowTerms(false)}
+      />
     </SafeAreaView>
   );
 }

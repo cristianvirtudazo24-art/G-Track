@@ -87,3 +87,94 @@ export const login = async (identifier: string, pass: string, role: 'student' | 
     throw new Error(apiMessage || "Server unreachable. Check your Wi-Fi and IP.");
   }
 };
+
+// Memory storage for offline demo OTP testing
+let activeDemoOtp = '123456';
+
+export const requestPasswordResetOTP = async (
+  identifier: string,
+  email: string,
+  role: 'student' | 'admin'
+) => {
+  try {
+    const endpoint = '/password/send-otp';
+    const payload = {
+      role,
+      email,
+      [role === 'student' ? 'student_id' : 'staff_id']: identifier,
+    };
+
+    console.log(`✉️ Sending OTP request to ${endpoint}:`, payload);
+    const response = await authClient.post(endpoint, payload);
+
+    if (response.data?.success || response.status === 200) {
+      return {
+        success: true,
+        message: response.data.message || 'OTP verification code sent to your email.',
+        demoOtp: response.data?.otp || activeDemoOtp,
+      };
+    }
+
+    return {
+      success: false,
+      message: response.data?.message || 'Could not send verification code.',
+    };
+  } catch (error: any) {
+    if (error?.code === 'ERR_NETWORK' || error?.message?.includes('Network')) {
+      console.warn('⚠️ Network offline. Simulating OTP generation for testing.');
+      activeDemoOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      return {
+        success: true,
+        message: `Offline Demo Mode: OTP verification code generated (${activeDemoOtp}).`,
+        demoOtp: activeDemoOtp,
+      };
+    }
+    return {
+      success: false,
+      message: error.response?.data?.message || 'Error communicating with server.',
+    };
+  }
+};
+
+export const resetPasswordDirect = async (
+  identifier: string,
+  newPassword: string,
+  role: 'student' | 'admin'
+) => {
+  try {
+    const endpoint = role === 'student' ? '/student/reset-password' : '/reset-password';
+    const payload = {
+      role,
+      new_password: newPassword,
+      password: newPassword,
+      [role === 'student' ? 'student_id' : 'staff_id']: identifier,
+    };
+
+    console.log(`🔐 Submitting direct password reset to ${endpoint}:`, payload);
+    const response = await authClient.post(endpoint, payload);
+
+    if (response.data?.success || response.status === 200 || response.data?.message?.includes('successful')) {
+      return {
+        success: true,
+        message: response.data?.message || 'Password reset successfully.',
+      };
+    }
+
+    return {
+      success: false,
+      message: response.data?.message || 'Failed to reset password. Please check your ID.',
+    };
+  } catch (error: any) {
+    if (error?.code === 'ERR_NETWORK' || error?.message?.includes('Network')) {
+      console.warn('⚠️ Network offline. Simulating direct password reset completion.');
+      return {
+        success: true,
+        message: 'Offline Demo Mode: Password reset successful.',
+      };
+    }
+    return {
+      success: false,
+      message: error.response?.data?.message || 'Failed to reset password. Server unreachable.',
+    };
+  }
+};

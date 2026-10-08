@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, UrlTile } from 'react-native-maps';
 import { getRecentLocations } from '../../../services/api';
+import { MAP_CONFIG } from '../../../constants/MapConfig';
 
 export default function AdminTrackingScreen() {
   const [locations, setLocations] = useState<any[]>([]);
@@ -142,9 +143,10 @@ export default function AdminTrackingScreen() {
             rotateEnabled={false}
           >
             <UrlTile
-              urlTemplate="https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
-              maximumZ={19}
-              minimumZ={0}
+              urlTemplate={MAP_CONFIG.tileUrl}
+              maximumZ={MAP_CONFIG.maximumZ}
+              minimumZ={MAP_CONFIG.minimumZ}
+              tileSize={MAP_CONFIG.tileSize}
               flipY={false}
             />
             {renderMarkers()}

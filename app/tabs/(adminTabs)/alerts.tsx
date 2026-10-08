@@ -1,7 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   Alert,
@@ -16,36 +15,25 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { BlackoutAlertsScreen } from '../../../components/BlackoutAlertsScreen';
-import { SOSAlertsScreen } from '../../../components/SOSAlertsScreen';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '../../../hooks/useUser';
-import { getAlerts, getBroadcastNotifications, getChatMessages, getStudents, sendAnnouncement, sendChatMessage } from '../../../services/api';
+import { getBroadcastNotifications, getChatMessages, getStudents, sendAnnouncement, sendChatMessage } from '../../../services/api';
 import { BroadcastNotification, ChatMessage } from '../../../types/index';
 
-const ALERT_CONFIG: Record<string, { color: string; bg: string; icon: string; label: string }> = {
-  danger:  { color: '#E8313A', bg: '#FEE2E2', icon: 'alert-octagon', label: 'DANGER' },
-  warning: { color: '#F97316', bg: '#FFF7ED', icon: 'alert',         label: 'WARNING' },
-  info:    { color: '#1E2F97', bg: '#EEF2FF', icon: 'information',    label: 'INFO' },
-};
-
-type ViewMode = 'student_messages' | 'emergency_alert' | 'broadcast_notifications' | null;
-type EmergencyAlertType = 'sos' | 'blackout' | null;
+type ViewMode = 'student_messages' | 'broadcast_notifications' | null;
 
 export default function AdminAlertsScreen() {
   const { session } = useUser();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const bottomInset = insets.bottom;
-  const [alerts, setAlerts] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('student_messages');
-  const [emergencyAlertType, setEmergencyAlertType] = useState<EmergencyAlertType>(null);
   const [selectedClass, setSelectedClass] = useState('All');
   const [showMenu, setShowMenu] = useState(false);
   const [showClassMenu, setShowClassMenu] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // Chat state
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -56,11 +44,9 @@ export default function AdminAlertsScreen() {
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const lastMessageCountRef = useRef(0);
 
-  // Broadcast Notifications state
   const [broadcasts, setBroadcasts] = useState<BroadcastNotification[]>([]);
   const [broadcastsLoading, setBroadcastsLoading] = useState(false);
   
-  // Broadcast Composer state
   const [showBroadcastComposer, setShowBroadcastComposer] = useState(false);
   const [showAudienceDropdown, setShowAudienceDropdown] = useState(false);
   const [composerForm, setComposerForm] = useState({
@@ -70,17 +56,6 @@ export default function AdminAlertsScreen() {
   });
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
-  useEffect(() => {
-    const fetchAlerts = () => {
-      getAlerts().then(setAlerts);
-    };
-
-    fetchAlerts();
-    const interval = setInterval(fetchAlerts, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Hide tab bar when in chat mode
   useEffect(() => {
     if (selectedStudent && viewMode === 'student_messages') {
       navigation.setOptions({
@@ -116,14 +91,12 @@ export default function AdminAlertsScreen() {
     }
   }, [viewMode]);
 
-  // Load chat messages when student is selected
   useEffect(() => {
     if (selectedStudent) {
       setHasInitialScrolled(false);
       lastMessageCountRef.current = 0;
       setIsUserScrolling(false);
       loadChatMessages(true);
-      // Set up polling for new messages every 3 seconds
       const interval = setInterval(() => {
         loadChatMessages(false);
       }, 3000);
@@ -131,12 +104,9 @@ export default function AdminAlertsScreen() {
     }
   }, [selectedStudent]);
 
-  // Handle scroll behavior: instantly scroll to bottom (latest conversation) on initial load,
-  // and only auto-scroll on new messages if the user is already at the bottom or if they sent it.
   useEffect(() => {
     if (chatMessages.length > 0) {
       if (!hasInitialScrolled) {
-        // Initial load: scroll instantly without animation
         const timer = setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: false });
           setHasInitialScrolled(true);
@@ -144,7 +114,6 @@ export default function AdminAlertsScreen() {
         }, 100);
         return () => clearTimeout(timer);
       } else if (chatMessages.length > lastMessageCountRef.current) {
-        // New messages arrived: only scroll if the user is already at the bottom or it is their own message
         const lastMsg = chatMessages[chatMessages.length - 1];
         const isSelfSent = lastMsg?.sender === 'admin' || (lastMsg?.adminId && String(lastMsg.adminId) === String(session?.dbId));
         if (isSelfSent || !isUserScrolling) {
@@ -179,15 +148,12 @@ export default function AdminAlertsScreen() {
       const result = await sendChatMessage(selectedStudent.id, messageText, session?.dbId || undefined, session?.name || undefined);
 
       if (result) {
-        // Add message to local state immediately for optimistic update
         setChatMessages(prev => [...prev, result]);
 
-        // Reload messages to ensure sync with backend
         setTimeout(() => {
           loadChatMessages(false);
         }, 500);
       } else {
-        // Show error to user
         console.error('❌ Failed to send message - API returned null');
         Alert.alert(
           'Send Failed',
@@ -211,7 +177,7 @@ export default function AdminAlertsScreen() {
     console.log('👤 Selected student:', student.name, 'ID:', student.id);
     setSelectedStudent(student);
     setChatMessages([]);
-    setHasInitialScrolled(false); // Reset scroll state for new conversation
+    setHasInitialScrolled(false);
   };
 
   const handleBackFromChat = () => {
@@ -225,11 +191,8 @@ export default function AdminAlertsScreen() {
     : students.filter(student => String(student.class) === String(selectedClass));
 
   const handleMenuItemPress = (mode: ViewMode) => {
-    if (mode === 'student_messages' || mode === 'emergency_alert' || mode === 'broadcast_notifications') {
+    if (mode === 'student_messages' || mode === 'broadcast_notifications') {
       setViewMode(mode);
-      if (mode === 'emergency_alert') {
-        setEmergencyAlertType(null); // Reset to show selector
-      }
       setShowMenu(false);
     }
   };
@@ -267,7 +230,6 @@ export default function AdminAlertsScreen() {
           {
             text: 'OK',
             onPress: async () => {
-              // Reset form
               setComposerForm({
                 targetAudience: 'all',
                 subjectLine: '',
@@ -276,7 +238,6 @@ export default function AdminAlertsScreen() {
               setShowAudienceDropdown(false);
               setShowBroadcastComposer(false);
 
-              // Reload broadcasts
               console.log('📢 [handleSendBroadcast] Reloading broadcasts...');
               const freshBroadcasts = await getBroadcastNotifications();
               console.log('📢 [handleSendBroadcast] Fresh broadcasts loaded:', freshBroadcasts?.length || 0);
@@ -311,49 +272,12 @@ export default function AdminAlertsScreen() {
     switch (viewMode) {
       case 'student_messages':
         return 'Student Messages';
-      case 'emergency_alert':
-        return 'Emergency Alerts';
       case 'broadcast_notifications':
         return 'Broadcast Notifications';
       default:
         return null;
     }
   };
-
-  const renderEmergencyAlertSelector = () => (
-    <View style={styles.emergencyAlertContainer}>
-      <View style={styles.emergencyAlertContent}>
-        <Text style={styles.emergencyTitle}>Emergency Alerts</Text>
-        <Text style={styles.emergencySubtitle}>Select alert type to view</Text>
-        
-        <View style={styles.emergencyButtonsContainer}>
-          <TouchableOpacity
-            style={[styles.emergencyButton, styles.sosButton]}
-            onPress={() => setEmergencyAlertType('sos')}
-            activeOpacity={0.85}
-          >
-            <View style={styles.emergencyButtonIcon}>
-              <MaterialCommunityIcons name="alert" size={36} color="white" />
-            </View>
-            <Text style={styles.emergencyButtonLabel}>SOS Alerts</Text>
-            <Text style={styles.emergencyButtonSub}>Videos from students</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.emergencyButton, styles.blackoutButton]}
-            onPress={() => setEmergencyAlertType('blackout')}
-            activeOpacity={0.85}
-          >
-            <View style={styles.emergencyButtonIcon}>
-              <MaterialCommunityIcons name="lightning-bolt" size={36} color="white" />
-            </View>
-            <Text style={styles.emergencyButtonLabel}>Blackout Alerts</Text>
-            <Text style={styles.emergencyButtonSub}>Power outage reports</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
 
   const renderStudentMessages = () => (
     <View style={styles.contentContainer}>
@@ -424,11 +348,6 @@ export default function AdminAlertsScreen() {
     if (!selectedStudent) return null;
 
     const renderMessageItem = ({ item }: { item: ChatMessage }) => {
-      // Determine if this message is from the CURRENT admin user
-      // Priority: Check adminId first, then fallback to sender type
-      // If adminId exists and matches current admin -> current user's message
-      // If no adminId and sender is admin -> assume current user (single admin scenario)
-      // If no adminId and sender is student -> student's message
       const isCurrentUserMessage = (
         (item.adminId && String(item.adminId) === String(session?.dbId)) ||
         (item.sender === 'admin' && !item.adminId && session?.dbId) ||
@@ -481,7 +400,6 @@ export default function AdminAlertsScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         style={styles.chatScreenContainer}
       >
-        {/* Chat Header */}
         <View style={styles.chatHeader}>
           <TouchableOpacity
             style={styles.backButton}
@@ -493,7 +411,6 @@ export default function AdminAlertsScreen() {
           <View style={styles.chatHeaderPlaceholder} />
         </View>
 
-        {/* Messages Container */}
         <View style={styles.messagesContainerWrapper}>
           {chatLoading && chatMessages.length === 0 ? (
             <View style={styles.loadingContainer}>
@@ -529,7 +446,6 @@ export default function AdminAlertsScreen() {
           )}
         </View>
 
-        {/* Message Input */}
         <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
             <TextInput
@@ -562,7 +478,6 @@ export default function AdminAlertsScreen() {
 
   const renderBroadcastNotifications = () => (
     <View style={styles.contentContainer}>
-      {/* Send New Broadcast Button */}
       <TouchableOpacity
         style={styles.sendBroadcastButton}
         onPress={() => setShowBroadcastComposer(true)}
@@ -598,7 +513,6 @@ export default function AdminAlertsScreen() {
           renderItem={({ item }) => (
             <View style={styles.broadcastCard}>
               <View style={styles.broadcastCardContent}>
-                {/* Title and Status Badge */}
                 <View style={styles.broadcastTitleRow}>
                   <Text style={styles.broadcastCardTitle}>{item.title}</Text>
                   <View style={styles.statusBadge}>
@@ -606,12 +520,10 @@ export default function AdminAlertsScreen() {
                   </View>
                 </View>
 
-                {/* Message Preview */}
                 <Text style={styles.broadcastMessage} numberOfLines={2}>
                   {item.message}
                 </Text>
 
-                {/* Meta Information */}
                 <View style={styles.broadcastMetaRow}>
                   <View style={styles.broadcastMetaItem}>
                     <Text style={styles.broadcastMetaLabel}>Sent by:</Text>
@@ -630,7 +542,6 @@ export default function AdminAlertsScreen() {
                   </View>
                 </View>
 
-                {/* Timestamp */}
                 <View style={styles.broadcastTimestampRow}>
                   <MaterialCommunityIcons name="clock-outline" size={14} color="#6B7280" />
                   <Text style={styles.broadcastTimestamp}>
@@ -638,7 +549,6 @@ export default function AdminAlertsScreen() {
                   </Text>
                 </View>
 
-                {/* Sent to All Link */}
                 <TouchableOpacity style={styles.sentToAllButton}>
                   <Text style={styles.sentToAllLink}>Sent to All</Text>
                 </TouchableOpacity>
@@ -648,7 +558,6 @@ export default function AdminAlertsScreen() {
         />
       )}
 
-      {/* Broadcast Composer Modal */}
       <Modal
         visible={showBroadcastComposer}
         animationType="slide"
@@ -656,7 +565,6 @@ export default function AdminAlertsScreen() {
         onRequestClose={handleCancelComposer}
       >
         <SafeAreaView style={styles.composerContainer}>
-          {/* Composer Header */}
           <View style={styles.composerHeader}>
             <View>
               <Text style={styles.composerTitle}>Compose New Broadcast</Text>
@@ -671,7 +579,6 @@ export default function AdminAlertsScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.composerForm}
           >
-            {/* Target Audience Dropdown */}
             <View style={styles.composerField}>
               <Text style={styles.composerFieldLabel}>TARGET AUDIENCE</Text>
               <View style={styles.dropdownContainer}>
@@ -720,7 +627,6 @@ export default function AdminAlertsScreen() {
               </View>
             </View>
 
-            {/* Subject Line */}
             <View style={styles.composerField}>
               <Text style={styles.composerFieldLabel}>SUBJECT LINE</Text>
               <TextInput
@@ -738,7 +644,6 @@ export default function AdminAlertsScreen() {
               />
             </View>
 
-            {/* Message Content */}
             <View style={styles.composerField}>
               <Text style={styles.composerFieldLabel}>MESSAGE CONTENT (RICH TEXT)</Text>
               <TextInput
@@ -757,7 +662,6 @@ export default function AdminAlertsScreen() {
               />
             </View>
 
-            {/* Action Buttons */}
             <View style={styles.composerActions}>
               <TouchableOpacity
                 style={[styles.sendAnnouncementButton, sendingBroadcast && styles.sendAnnouncementButtonDisabled]}
@@ -785,7 +689,6 @@ export default function AdminAlertsScreen() {
   );
 
   const renderContent = () => {
-    // If a student is selected, show chat screen
     if (selectedStudent && viewMode === 'student_messages') {
       return renderChatScreen();
     }
@@ -793,61 +696,20 @@ export default function AdminAlertsScreen() {
     switch (viewMode) {
       case 'student_messages':
         return renderStudentMessages();
-      case 'emergency_alert':
-        // Show selector if no emergency type selected
-        if (!emergencyAlertType) {
-          return renderEmergencyAlertSelector();
-        }
-        // Show SOS alerts
-        if (emergencyAlertType === 'sos') {
-          return <SOSAlertsScreen onBackPress={() => setEmergencyAlertType(null)} />;
-        }
-        // Show Blackout alerts
-        if (emergencyAlertType === 'blackout') {
-          return <BlackoutAlertsScreen onBackPress={() => setEmergencyAlertType(null)} />;
-        }
-        return renderEmergencyAlertSelector();
       case 'broadcast_notifications':
         return renderBroadcastNotifications();
       default:
-        return (
-          <FlatList
-            data={alerts}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={<Text style={styles.emptyText}>No alerts actively recorded.</Text>}
-            renderItem={({ item }) => {
-              const cfg = ALERT_CONFIG[item.type] ?? ALERT_CONFIG.info;
-              return (
-                <View style={styles.alertCard}>
-                  <View style={[styles.iconWrap, { backgroundColor: cfg.bg }]}>
-                    <MaterialCommunityIcons name={cfg.icon as any} size={22} color={cfg.color} />
-                  </View>
-                  <View style={styles.alertContent}>
-                    <View style={styles.alertHeader}>
-                      <Text style={[styles.alertType, { color: cfg.color }]}>{cfg.label}</Text>
-                      <Text style={styles.alertTime}>{new Date(item.timestamp).toLocaleTimeString()}</Text>
-                    </View>
-                    <Text style={styles.alertBody}>{item.text}</Text>
-                    <Text style={styles.alertStudentId}>Student ID: {item.studentId}</Text>
-                  </View>
-                </View>
-              );
-            }}
-          />
-        );
+        return renderStudentMessages();
     }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Show chat screen if student is selected */}
+      
       {selectedStudent && viewMode === 'student_messages' ? (
         renderChatScreen()
       ) : (
         <>
-          {/* Show normal UI if not in chat mode */}
           <View style={styles.header}>
             <View>
               <Text style={styles.headerTitle}>Notifications</Text>
@@ -875,13 +737,6 @@ export default function AdminAlertsScreen() {
               >
                 <MaterialCommunityIcons name="message-text" size={20} color="#1E2F97" />
                 <Text style={styles.menuItemText}>Student Messages</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => handleMenuItemPress('emergency_alert')}
-              >
-                <MaterialCommunityIcons name="alert-circle" size={20} color="#E8313A" />
-                <Text style={styles.menuItemText}>Emergency Alert</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.menuItem}
@@ -1122,7 +977,6 @@ const styles = StyleSheet.create({
   },
   emptyText: { textAlign: 'center', color: '#9CA3AF', fontSize: 14, marginTop: 10 },
   
-  // Chat styles
   chatScreenContainer: {
     flex: 1,
     backgroundColor: '#F5F7FF',
@@ -1249,7 +1103,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#9CA3AF',
     opacity: 0.6,
   },
-  // Emergency Alert Styles
   emergencyAlertContainer: {
     flex: 1,
     backgroundColor: '#F5F7FF',
@@ -1308,7 +1161,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255, 255, 255, 0.8)',
   },
-  // Broadcast Notifications Styles
   broadcastHeaderContainer: {
     backgroundColor: '#1E9FD8',
     paddingHorizontal: 24,
@@ -1427,7 +1279,6 @@ const styles = StyleSheet.create({
     color: '#1E9FD8',
     fontWeight: '600',
   },
-  // Send Broadcast Button
   sendBroadcastButton: {
     backgroundColor: '#1E9FD8',
     flexDirection: 'row',
@@ -1451,7 +1302,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
-  // Composer Styles
   composerContainer: {
     flex: 1,
     backgroundColor: '#F9FAFB',

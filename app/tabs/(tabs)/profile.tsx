@@ -22,6 +22,7 @@ import { useLocation } from '../../../hooks/useLocation';
 import { useNetworkInfo } from '../../../hooks/useNetworkInfo';
 import { useUser } from '../../../hooks/useUser';
 import { uploadProfilePicture } from '../../../services/api';
+import { TermsModal } from '../../../components/TermsModal';
 
 const getProfilePhotoKey = (studentId: string | number) => `studentProfilePhoto_${studentId}`;
 
@@ -36,6 +37,7 @@ export default function ProfileScreen() {
   const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   const profileData = session.profile || {
     student_id: session.studentId,
@@ -298,12 +300,34 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Card 3: App Policies & Legal */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Legal & Policies</Text>
+
+          <TouchableOpacity 
+            style={styles.infoRow} 
+            onPress={() => setShowTerms(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.infoIconWrap}>
+              <MaterialCommunityIcons name="shield-check-outline" size={16} color="#1E2F97" />
+            </View>
+            <Text style={[styles.infoLabel, { flex: 1 }]}>Terms & Conditions</Text>
+            <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
+
         {/* Sign Out Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.85}>
           <MaterialCommunityIcons name="logout" size={18} color="#EF4444" />
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <TermsModal
+        visible={showTerms}
+        onClose={() => setShowTerms(false)}
+      />
     </View>
   );
 }
